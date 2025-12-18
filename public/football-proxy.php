@@ -1,50 +1,106 @@
 <?php
-// 1. Core Security Headers
+// 1. HEADERS
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, X-Auth-Token");
 header("Content-Type: application/json");
 
-// 2. Configuration
-$apiKey = '258ebd52f0974d3da86a562b509bed14';
+// 2. CONFIGURATION
+// ⚠️ Your Football-Data.org Key
+$apiKey = '3872efd6b7d1421bb5065cf191ff6bcf'; 
 
-// 3. Dynamic Parameters
-// Get the requested league (defaults to PL) and data type (defaults to standings)
-$league = $_GET['league'] ?? 'PL'; 
-$type = $_GET['type'] ?? 'standings';
-
-// Supported League Codes:
-// PL = Premier League, PD = La Liga, SA = Serie A, BL1 = Bundesliga, FL1 = Ligue 1, BSA = Brasileirão
-$urls = [
-    'standings' => "https://api.football-data.org/v4/competitions/$league/standings",
-    'scorers'   => "https://api.football-data.org/v4/competitions/$league/scorers",
-    'matches'   => "https://api.football-data.org/v4/competitions/$league/matches?status=SCHEDULED"
+// 3. MAPPING
+$leagueMap = [
+    '39'  => 'PL',   // Premier League
+    '140' => 'PD',   // La Liga
+    '78'  => 'BL1',  // Bundesliga
+    '135' => 'SA',   // Serie A
+    '61'  => 'FL1',  // Ligue     '88'  => 'DED',  // Eredivisie
+    '71'  => 'BSA',  // Brasileirao
+    '94'  => 'PPL',  // Primeira Liga
 ];
 
-// Fallback logic
-$url = $urls[$type] ?? $urls['standings'];
+$leagueId = $_GET['league'] ?? '39';
+$type = $_GET['type'] ?? 'standings';
+$competionCode = $leagueMap[$leagueId] ?? 'PL';
 
-// 4. Optimized cURL Request
-$ch = curl_init();
-curl_setopt($ch, CURLOPT_URL, $url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'X-Auth-Token: ' . $apiKey,
-    'Accept: application/json'
-]);
+// 4. BUILD URL
+$baseUrl = "https://api.football-data.org/v4/competitions/$competionCode";
+$url = "";
 
-// SSL trust fix for production servers
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-
-$response = curl_exec($ch);
-
-// 5. Error Handling & Output
-if (curl_errno($ch)) {
-    http_response_code(500);
-    echo json_encode(['error' => 'Proxy Error: ' . curl_error($ch)]);
-} else {
-    echo $response;
+if ($type === 'standings') {
+    $url = "$baseUrl/standings";
+} 
+elseif ($type === 'scorers') {
+    $url = "$baseUrl/scorers";
+} 
+elseif ($type === 'fixtures') {
+    // Fetch SCHEDULED and LIVE matches
+    $url = "$baseUrl/matches?status=SCHEDULED,LIVE,IN_PLAY,PAUSED,FINISHED"; 
 }
 
-curl_close($ch);
+// 5. REQUEST (Fetch Data First)
+$curl = curl_init();
+curl_setopt_array($curl, [
+    CURLOPT_URL => $url,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_HTTPHEADER => [
+        "X-Auth-Token: " . $apiKey
+    ],
+]);
+$response = curl_exec($curl);
+curl_close($curl);
+
+// 6. ADAPTER (Transform Data AFTER fetching it)
+$data = json_decode($response, true);
+$output = ['response' => []];
+
+if ($type === 'standings' && isset($data['standings'][0]['table'])) {
+    $cleanTable = [];
+    foreach ($data['standings'][0]['table'] as $t) {
+        $cleanTable[] = [
+            'rank' => $t['position'],
+            'team' => ['id' => $t['team']['id'], 'name' => $t['team']['name'], 'logo' => $t['team']['crest'], 'id_clean' => $t['team']['tla']],
+            'points' => $t['points'],
+            'all' => ['played' => $t['playedGames'], 'win' => $t['won'], 'draw' => $t['draw'], 'lose' => $t['lost']],
+            'form' => str_replace(',', '', $t['form'] ?? '')
+        ];
+    }
+    $output['response'][] = ['league' => ['standings' => [$cleanTable]]];
+}
+elseif ($type === 'scorers' && isset($data['scorers'])) {
+    foreach ($data['scorers'] as $s) {
+        $output['response'][] = [
+            'player' => ['name' => $s['player']['name'], 'photo' => 'https://crests.football-data.org/generic.png'], 
+            'statistics' => [['team' => ['name' => $s['team']['name']], 'goals' => ['total' => $s['goals']]]]
+        ];
+    }
+}
+elseif ($type === 'fixtures' && isset($data['matches'])) {
+    $count = 0;
+    foreach ($data['matches'] as $m) {
+        if ($m['status'] !== 'FINISHED') {
+            $output['response'][] = [
+                'fixture' => [
+                    'id' => $m['id'],
+                    'date' => $m['utcDate'],
+                    'status' => ['short' => $m['status']]
+                ],
+                'teams' => [
+                    'home' => ['name' => $m['homeTeam']['name'], 'logo' => $m['homeTeam']['crest']],
+                    'away' => ['name' => $m['awayTeam']['name'], 'logo' => $m['awayTeam']['crest']]
+                ],
+                'goals' => [
+                    'home' => $m['score']['fullTime']['home'], 
+                    'away' => $m['score']['fullTime']['away']
+                ]
+            ];
+            $count++;
+            if ($count >= 15) break; 
+        }
+    }
+}
+
+echo json_encode($output);
 ?>
