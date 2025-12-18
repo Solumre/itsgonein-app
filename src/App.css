@@ -119,3 +119,44 @@ body {
   color: black;
   font-weight: bold;
 }
+
+/* Fix the dashboard container */
+.stats-dashboard {
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 20px;
+  padding: 2rem;
+  overflow-x: auto; /* This allows horizontal scrolling on mobile */
+}
+
+/* Tab buttons for Match Center */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.tab-group button {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tab-group button.active {
+  background: #22c55e;
+  color: black;
+}
+
+/* Ensure the full table is visible */
+.standings-table {
+  width: 100%;
+  border-spacing: 0;
+}
+
+.standings-table tr:hover {
+  background: rgba(255,255,255,0.03);
+}
