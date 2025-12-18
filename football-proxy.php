@@ -1,4 +1,9 @@
 <?php
+// These headers must come BEFORE any other code or the API key
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, X-Auth-Token");
+header("Content-Type: application/json");
 // Replace with your real API key
 $apiKey = '258ebd52f0974d3da86a562b509bed14';
 
