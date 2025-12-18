@@ -19,34 +19,30 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [compareList, setCompareList] = useState([]);
 
-  // 1. Fetch Ticker Data (Matches)
-  useEffect(() => {
-    fetch(`https://itsgonein.com/football-proxy.php?league=PL&type=matches`)
+   useEffect(() => {
+    fetch('https://itsgonein.com/football-proxy.php?league=PL&type=matches')
       .then(res => res.json())
       .then(json => setTickerData(json.matches?.slice(0, 15) || []));
   }, []);
 
-  // 2. Fetch Main Content with Crash Protection
-  useEffect(() => {
-    const fetchData = async () => {
+   useEffect(() => {
+    const fetchEliteData = async () => {
       try {
         setLoading(true);
         const res = await fetch(`https://itsgonein.com/football-proxy.php?league=${currentLeague}&type=${view}`);
         const json = await res.json();
         
-        let normalizedData = [];
-        if (view === 'standings') normalizedData = json.standings?.[0]?.table || [];
-        else if (view === 'scorers') normalizedData = json.scorers || [];
-        else if (view === 'matches') normalizedData = json.matches || [];
-        
-        setData(normalizedData);
+        // CRITICAL: Crash protection mapping
+        if (view === 'standings') setData(json.standings?.[0]?.table || []);
+        else if (view === 'scorers') setData(json.scorers || []);
+        else if (view === 'matches') setData(json.matches || []);
       } catch (e) {
         setData([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchEliteData();
   }, [currentLeague, view]);
 
   const toggleCompare = (team) => {
@@ -58,8 +54,7 @@ function App() {
   };
 
   return (
-    <div className="pro-app">
-      {/* ⚡️ LIVE NEWS TICKER */}
+     <div className="pro-app">
       <div className="ticker-wrap">
         <div className="ticker-move">
           {tickerData.map((m, i) => (
@@ -71,8 +66,7 @@ function App() {
         </div>
       </div>
 
-      <div className="dashboard-grid">
-        {/* LEAGUE SIDEBAR */}
+       <div className="dashboard-grid">
         <aside className="sidebar">
           <h1 className="brand">ITS<span>GONE</span>IN<span>.</span></h1>
           <nav className="league-nav">
@@ -90,7 +84,7 @@ function App() {
           </nav>
         </aside>
 
-         <main className="main-hub">
+        <main className="main-hub">
           <header className="hub-header">
             <div className="tabs">
               {['standings', 'scorers', 'matches'].map(v => (
@@ -104,10 +98,8 @@ function App() {
           <div className="hub-content">
             <section className="stats-glass">
               <AnimatePresence mode="wait">
-                {loading ? (
-                  <div className="loader">SYNCING DATA...</div>
-                ) : (
-                  <motion.div key={view + currentLeague} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="scroll-panel">
+                {loading ? <div className="loader">SYNCING DATA...</div> : (
+                  <motion.div key={view + currentLeague} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="data-area">
                     {view === 'standings' && (
                       <table className="pro-table clickable">
                         <thead><tr><th>#</th><th>TEAM</th><th>GD</th><th>PTS</th></tr></thead>
@@ -124,35 +116,32 @@ function App() {
                       </table>
                     )}
                     {view === 'scorers' && data.map(s => (
-                      <div key={s.player?.id} className="list-row">
+                      <div key={s.player?.id} className="stat-row">
                         <span><strong>{s.player?.name}</strong> ({s.team?.shortName})</span>
-                        <span className="neon-pts">{s.goals} Goals</span>
+                        <span className="neon-pts">{s.goals} G / {s.assists || 0} A</span>
                       </div>
                     ))}
-                    {view === 'matches' && data.slice(0, 15).map(m => (
-                      <div key={m.id} className="list-row">
-                        <span>{m.homeTeam?.shortName} vs {m.awayTeam?.shortName}</span>
-                        <span className="dim-text">{new Date(m.utcDate).toLocaleDateString()}</span>
+                    {view === 'matches' && data.slice(0, 12).map(m => (
+                      <div key={m.id} className="match-card-lite">
+                        <div className="m-teams">{m.homeTeam?.shortName} vs {m.awayTeam?.shortName}</div>
+                        <div className="m-date">{new Date(m.utcDate).toLocaleDateString()}</div>
                       </div>
                     ))}
                   </motion.div>
                 )}
               </AnimatePresence>
             </section>
-
-            {/* 🎯 TACTICAL ANALYST & H2H */}
+ 
             <section className="scout-column">
               <h2 className="glow-label">TACTICAL ANALYST</h2>
               {compareList.length === 2 ? (
                 <div className="h2h-card glass">
-                  <div className="h2h-header">
-                    <img src={compareList[0].team?.crest} width="40" alt="" />
-                    <span>VS</span>
-                    <img src={compareList[1].team?.crest} width="40" alt="" />
+                  <div className="h2h-header"><img src={compareList[0].team?.crest} width="40"/> VS <img src={compareList[1].team?.crest} width="40"/></div>
+                  <div className="h2h-stats">
+                    <div className="h-row"><span>{compareList[0].points}</span><label>PTS</label><span>{compareList[1].points}</span></div>
+                    <div className="h-row"><span>{compareList[0].goalDifference}</span><label>GD</label><span>{compareList[1].goalDifference}</span></div>
                   </div>
-                  <div className="h2h-stat"><span>{compareList[0].points}</span><label>PTS</label><span>{compareList[1].points}</span></div>
-                  <div className="h2h-stat"><span>{compareList[0].goalDifference}</span><label>GD</label><span>{compareList[1].goalDifference}</span></div>
-                  <button className="reset-btn" onClick={() => setCompareList([])}>RESET H2H</button>
+                  <button className="reset-btn" onClick={() => setCompareList([])}>RESET</button>
                 </div>
               ) : (
                 <div className="pitch-card glass">
@@ -161,7 +150,7 @@ function App() {
                       <div className="pitch-player striker"><div className="player-glow"></div><p>{data[0].player?.name}</p></div>
                     )}
                   </div>
-                  <p className="hint-text">Select two teams to compare H2H stats.</p>
+                  <p className="hint">Select two teams to compare H2H.</p>
                 </div>
               )}
             </section>
