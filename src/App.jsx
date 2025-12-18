@@ -5,24 +5,36 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('TABLE');
   const [activeLeague, setActiveLeague] = useState('PL'); 
   const [loading, setLoading] = useState(false);
-  
+  const [showLogin, setShowLogin] = useState(false);
+  const [user, setUser] = useState(null); // Mock user state
+  const [voted, setVoted] = useState(false);
+
   // Data States
   const [tableData, setTableData] = useState([]);
   const [scorersData, setScorersData] = useState([]);
-  const [fixturesData, setFixturesData] = useState([]);
-  const [selectedTeam, setSelectedTeam] = useState(null);
+  
+  // MOCK NEWS DATA (Since API doesn't provide news)
+  const newsFeed = [
+    { id: 1, tag: 'RUMOR', title: 'Mbappé to Liverpool? Agent spotted in London.', time: '2h ago', img: '🔥' },
+    { id: 2, tag: 'VIRAL', title: 'Haaland breaks another robot record.', time: '4h ago', img: '🤖' },
+    { id: 3, tag: 'DRAMA', title: 'VAR Audio released: Ref made a huge mistake.', time: '6h ago', img: '⚠️' },
+  ];
 
-  // YOUR HOSTINGER URL
+  // MOCK VOTING DATA
+  const voteOptions = [
+    { id: 1, name: 'Bellingham', team: 'Real Madrid', votes: 45 },
+    { id: 2, name: 'Saka', team: 'Arsenal', votes: 30 },
+    { id: 3, name: 'Salah', team: 'Liverpool', votes: 25 },
+  ];
+
   const PHP_PROXY_URL = 'https://itsgonein.com/football-proxy.php'; 
 
   const leagues = [
-    { code: 'PL', name: 'Premier League' },
-    { code: 'PD', name: 'La Liga' },
-    { code: 'BL1', name: 'Bundesliga' },
-    { code: 'SA', name: 'Serie A' },
-    { code: 'FL1', name: 'Ligue 1' },
-    { code: 'DED', name: 'Eredivisie' },
-    { code: 'BSA', name: 'Brasileirão' },
+    { code: 'PL', name: 'Prem', icon: '🦁' },
+    { code: 'PD', name: 'La Liga', icon: '🇪🇸' },
+    { code: 'BL1', name: 'Bundesliga', icon: '🇩🇪' },
+    { code: 'SA', name: 'Serie A', icon: '🇮🇹' },
+    { code: 'FL1', name: 'Ligue 1', icon: '🇫🇷' },
   ];
 
   useEffect(() => {
@@ -30,93 +42,61 @@ const App = () => {
   }, [activeTab, activeLeague]);
 
   const fetchData = async (tab, league) => {
-     setLoading(true);
-    let typeParam = 'standings';
-    if (tab === 'SCORERS') typeParam = 'scorers';
-    if (tab === 'FIXTURES') typeParam = 'matches';
-
+    setLoading(true);
     try {
-      const res = await fetch(`${PHP_PROXY_URL}?league=${league}&type=${typeParam}`);
-      const data = await res.json();
+      // Fetch Standings
+      const resTable = await fetch(`${PHP_PROXY_URL}?league=${league}&type=standings`);
+      const dataTable = await resTable.json();
       
-      // 1. TABLE DATA
-      if (tab === 'TABLE' && data.standings) {
-        const cleanTable = data.standings[0].table.map(t => ({
-          id: t.team.id,
-          rank: t.position,
-          name: t.team.shortName || t.team.name,
-          crest: t.team.crest,
-          played: t.playedGames,
-          won: t.won,
-          draw: t.draw,
-          lost: t.lost,
-          gd: t.goalDifference,
-          pts: t.points,
-          form: t.form, // "W,W,L,D,W"
-          goalsFor: t.goalsFor,
-          goalsAgainst: t.goalsAgainst
-        }));
-        setTableData(cleanTable);
-      } 
-      // 2. SCORERS DATA
-      else if (tab === 'SCORERS' && data.scorers) {
-        const cleanScorers = data.scorers.map((s, index) => ({
-          rank: index + 1,
-          name: s.player.name,
-          team: s.team.shortName,
-          goals: s.goals,
-          assists: s.assists || 0
-        }));
-        setScorersData(cleanScorers);
-      }
-      // 3. FIXTURES DATA
-      else if (tab === 'FIXTURES' && data.matches) {
-        const upcoming = data.matches
-          .filter(m => m.status !== 'FINISHED')
-          .slice(0, 15)
-          .map(m => ({
-            id: m.id,
-            date: new Date(m.utcDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            time: new Date(m.utcDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-            home: m.homeTeam.shortName || m.homeTeam.name,
-            away: m.awayTeam.shortName || m.awayTeam.name,
-          }));
-        setFixturesData(upcoming);
+      if (dataTable.standings) {
+        setTableData(dataTable.standings[0].table.map(t => ({
+          ...t,
+          shortName: t.team.shortName || t.team.name
+        })));
       }
 
-    } catch (err) {
-      console.error(err);
-    }
+      // Fetch Scorers for "Top Stats"
+      const resScorers = await fetch(`${PHP_PROXY_URL}?league=${league}&type=scorers`);
+      const dataScorers = await resScorers.json();
+      if (dataScorers.scorers) {
+        setScorersData(dataScorers.scorers.slice(0, 3));
+      }
+
+    } catch (err) { console.error(err); }
     setLoading(false);
-   };
+  };
 
-   return (
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setUser({ username: 'FootyFan_99', level: 5 });
+    setShowLogin(false);
+  };
+
+  return (
     <div className="app-container">
-      {/* 1. FIXED TICKER (Full width, no overlap) */}
-      <div className="top-ticker">
-        <div className="live-badge">LIVE</div>
-        <div className="ticker-wrapper">
-           <div className="ticker-content">
-              <span>Man City <b className="score">3-1</b> Arsenal</span>
-              <span>Real Madrid <b className="score">2-0</b> Barcelona</span>
-              <span>Bayern <b className="score">0-0</b> Dortmund</span>
-              <span>PSG <b className="score">4-1</b> Lyon</span>
-              <span>Ajax <b className="score">1-0</b> Feyenoord</span>
-              <span>Flamengo <b className="score">2-2</b> Santos</span>
-              {/* Duplicate for infinite loop */}
-              <span>Man City <b className="score">3-1</b> Arsenal</span>
-              <span>Real Madrid <b className="score">2-0</b> Barcelona</span>
-              <span>Bayern <b className="score">0-0</b> Dortmund</span>
-              <span>PSG <b className="score">4-1</b> Lyon</span>
-           </div>
+      {/* LOGIN OVERLAY */}
+      {showLogin && (
+        <div className="modal-overlay">
+          <div className="login-box">
+            <h2>JOIN THE SQUAD</h2>
+            <p>Vote for MVP, Comment, and Rank Up.</p>
+            <form onSubmit={handleLogin}>
+              <input type="text" placeholder="Username" />
+              <input type="password" placeholder="Password" />
+              <button type="submit" className="login-btn-action">ENTER GAME</button>
+            </form>
+            <button className="close-btn" onClick={() => setShowLogin(false)}>✕</button>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="dashboard-layout">
-        {/* SIDEBAR */}
+      <div className="dashboard-grid">
+        
+        {/* COL 1: NAVIGATION (Slimmer) */}
         <nav className="side-nav">
-          <div className="brand">ITS<span className="accent">GONE</span>IN.</div>
-          <div className="nav-section">
+          <div className="brand">IG<span className="accent">I.</span></div>
+          
+          <div className="nav-group">
             <label>LEAGUES</label>
             {leagues.map(l => (
               <div 
@@ -124,146 +104,158 @@ const App = () => {
                 className={`nav-item ${activeLeague === l.code ? 'active' : ''}`}
                 onClick={() => setActiveLeague(l.code)}
               >
-                {l.name}
+                <span className="nav-icon">{l.icon}</span>
+                <span className="nav-text">{l.name}</span>
               </div>
             ))}
           </div>
+
+          <div className="nav-group">
+            <label>COMMUNITY</label>
+            <div className="nav-item">🔥 Trending</div>
+            <div className="nav-item">💬 Forums</div>
+            <div className="nav-item">👕 Shop</div>
+          </div>
         </nav>
 
-        {/* MAIN STAGE */}
-        <main className="main-stage">
-          {/* 2. TABS RESTORED HERE */}
-          <div className="tabs-header">
-            {['TABLE', 'SCORERS', 'FIXTURES'].map(tab => (
-              <button 
-                key={tab}
-                className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+        {/* COL 2: MAIN FEED (The Table + Live) */}
+        <main className="main-feed">
+          <header className="feed-header">
+            <h1>{leagues.find(l=>l.code===activeLeague)?.name} Season</h1>
+            <div className="tabs">
+              <button className={activeTab === 'TABLE' ? 'active' : ''} onClick={()=>setActiveTab('TABLE')}>Standings</button>
+              <button className={activeTab === 'SCORERS' ? 'active' : ''} onClick={()=>setActiveTab('SCORERS')}>Stats</button>
+            </div>
+          </header>
 
-          <div className="data-card">
-            {loading && <div className="loading-msg">Fetching Live Data...</div>}
-            
-            {!loading && activeTab === 'TABLE' && (
-              <table className="pro-table">
+          {/* DYNAMIC CARD: Top Scorer Spotlight */}
+          {scorersData.length > 0 && (
+            <div className="spotlight-card">
+              <div className="spotlight-info">
+                <span className="badge">GOLDEN BOOT RACE</span>
+                <h3>{scorersData[0].player.name}</h3>
+                <p>{scorersData[0].team.shortName}</p>
+              </div>
+              <div className="spotlight-stat">
+                <span className="big-num">{scorersData[0].goals}</span>
+                <span className="label">GOALS</span>
+              </div>
+            </div>
+          )}
+
+          <div className="data-container">
+            {loading ? <div className="loader">Loading Data...</div> : (
+              <table className="modern-table">
                 <thead>
                   <tr>
-                    <th width="40">#</th>
-                    <th>CLUB</th>
-                    <th>PL</th>
-                     <th>GD</th>
-                    <th className="text-right">PTS</th>
+                    <th>#</th>
+                    <th>Club</th>
+                    <th>MP</th>
+                    <th>W/D/L</th>
+                    <th>Pts</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tableData.map(t => (
-                    <tr 
-                      key={t.id} 
-                      onClick={() => setSelectedTeam(t)} 
-                      className={selectedTeam?.id === t.id ? 'row-selected' : ''}
-                    >
-                      <td className="rank-cell">{t.rank}</td>
-                      <td>
-                        <div className="team-cell">
-                          <img src={t.crest} className="team-crest" alt="" />
-                          {t.name}
-                        </div>
+                    <tr key={t.team.id}>
+                      <td className="rank">{t.position}</td>
+                      <td className="team-flex">
+                        <img src={t.team.crest} alt="" />
+                        <span>{t.shortName}</span>
                       </td>
-                      <td className="dim-text">{t.played}</td>
-                      <td className="mono-text">{t.gd > 0 ? `+${t.gd}` : t.gd}</td>
-                      <td className="points-cell">{t.pts}</td>
+                      <td>{t.playedGames}</td>
+                      <td className="form-mini">
+                         <span className="w">{t.won}</span>/
+                         <span className="d">{t.draw}</span>/
+                         <span className="l">{t.lost}</span>
+                      </td>
+                      <td className="pts">{t.points}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-
-            {!loading && activeTab === 'SCORERS' && (
-              <div className="list-view">
-                {scorersData.map(s => (
-                  <div key={s.name} className="list-row">
-                     <span className="rank-badge">{s.rank}</span>
-                     <div className="list-info">
-                       <span className="list-name">{s.name}</span>
-                       <span className="list-sub">{s.team}</span>
-                     </div>
-                     <span className="list-value">{s.goals}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!loading && activeTab === 'FIXTURES' && (
-              <div className="fixtures-grid">
-                {fixturesData.map(f => (
-                  <div key={f.id} className="fixture-box">
-                    <div className="fixture-meta">{f.date} <span className="dot">•</span> {f.time}</div>
-                    <div className="fixture-vs">
-                      <span>{f.home}</span>
-                      <span className="vs-label">VS</span>
-                      <span>{f.away}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </main>
 
-        {/* 3. NEW RIGHT PANEL (Replaces empty blob) */}
-        <section className="analyst-view">
-          <label className="panel-title">TEAM INTELLIGENCE</label>
+        {/* COL 3: SOCIAL & HYPE (New Engagement Section) */}
+        <aside className="hype-zone">
           
-          {selectedTeam ? (
-            <div className="team-profile">
-               <div className="profile-header">
-                  <img src={selectedTeam.crest} className="profile-crest" alt="" />
-                  <h2>{selectedTeam.name}</h2>
-                  <span className="rank-tag">Rank #{selectedTeam.rank}</span>
-               </div>
+          {/* USER PROFILE / LOGIN */}
+          <div className="user-card">
+            {user ? (
+              <div className="logged-in">
+                <div className="avatar">😎</div>
+                <div className="user-info">
+                  <h4>{user.username}</h4>
+                  <span className="level">Lvl {user.level} Ultras</span>
+                </div>
+              </div>
+            ) : (
+              <div className="login-prompt">
+                <p>Join the debate.</p>
+                <button onClick={() => setShowLogin(true)}>LOGIN / SIGN UP</button>
+              </div>
+            )}
+          </div>
 
-               <div className="stat-block">
-                 <label>RECENT FORM</label>
-                 <div className="form-row">
-                   {selectedTeam.form ? selectedTeam.form.split(',').map((r, i) => (
-                     <span key={i} className={`form-pill ${r}`}>{r}</span>
-                   )) : <span className="no-data">N/A</span>}
-                 </div>
-               </div>
-
-               <div className="stat-grid">
-                 <div className="mini-stat">
-                   <span className="val">{(selectedTeam.goalsFor / selectedTeam.played).toFixed(1)}</span>
-                   <label>Goals / Game</label>
-                 </div>
-                 <div className="mini-stat">
-                   <span className="val" style={{color:'#ff4757'}}>{(selectedTeam.goalsAgainst / selectedTeam.played).toFixed(1)}</span>
-                   <label>Conceded / Game</label>
-                 </div>
-               </div>
-
-               <div className="efficiency-bar">
-                  <label>Win Rate</label>
-                  <div className="progress-bg">
-                    <div 
-                      className="progress-fill" 
-                      style={{width: `${(selectedTeam.won / selectedTeam.played) * 100}%`}}
-                    ></div>
+          {/* VOTING SECTION */}
+          <div className="widget-box vote-box">
+            <div className="widget-header">
+              <h3>PLAYER OF THE WEEK</h3>
+              <span className="live-dot">● VOTING LIVE</span>
+            </div>
+            <div className="vote-list">
+              {voteOptions.map(v => (
+                <div 
+                  key={v.id} 
+                  className={`vote-item ${voted ? 'disabled' : ''}`}
+                  onClick={() => setVoted(true)}
+                >
+                  <div className="vote-info">
+                    <span>{v.name}</span>
+                    <small>{v.team}</small>
                   </div>
-                  <span className="perc">{Math.round((selectedTeam.won / selectedTeam.played) * 100)}%</span>
-               </div>
+                  {voted && <div className="vote-perc">{v.votes}%</div>}
+                  {voted && <div className="vote-bar" style={{width: `${v.votes}%`}}></div>}
+                </div>
+              ))}
+            </div>
+          </div>
 
+          {/* NEWS FEED */}
+          <div className="widget-box news-box">
+            <h3>LATEST DROPS</h3>
+            {newsFeed.map(news => (
+              <div key={news.id} className="news-item">
+                <div className="news-icon">{news.img}</div>
+                <div className="news-content">
+                  <span className={`tag ${news.tag}`}>{news.tag}</span>
+                  <p>{news.title}</p>
+                  <small>{news.time}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* STATS MARKET (Mocked for Visual Appeal) */}
+          <div className="widget-box stats-box">
+            <h3>MARKET MOVERS 📈</h3>
+            <div className="market-row">
+              <span>💎 Bellingham</span>
+              <span className="price">€180M</span>
             </div>
-          ) : (
-            <div className="empty-state">
-              <p>Select a club from the table to view their intelligence report.</p>
+            <div className="market-row">
+              <span>💎 Haaland</span>
+              <span className="price">€200M</span>
             </div>
-          )}
-        </section>
+            <div className="market-row down">
+              <span>🔻 Antony</span>
+              <span className="price">€25M</span>
+            </div>
+          </div>
+
+        </aside>
       </div>
     </div>
   );
