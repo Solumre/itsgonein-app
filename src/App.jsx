@@ -19,6 +19,25 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [compareList, setCompareList] = useState([]);
 
+  // Fixes the ReferenceError by ensuring names match exactly
+  const executeDataFetch = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`https://itsgonein.com/football-proxy.php?league=${currentLeague}&type=${view}`);
+      const json = await res.json();
+      
+      let normalized = [];
+      if (view === 'standings') normalized = json.standings?.[0]?.table || [];
+      else if (view === 'scorers') normalized = json.scorers || [];
+      else if (view === 'matches') normalized = json.matches || [];
+      setData(normalized);
+    } catch (e) {
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetch(`https://itsgonein.com/football-proxy.php?league=PL&type=matches`)
       .then(res => res.json())
@@ -26,24 +45,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const fetchEliteData = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`https://itsgonein.com/football-proxy.php?league=${currentLeague}&type=${view}`);
-        const json = await res.json();
-        
-         let normalized = [];
-        if (view === 'standings') normalized = json.standings?.[0]?.table || [];
-        else if (view === 'scorers') normalized = json.scorers || [];
-        else if (view === 'matches') normalized = json.matches || [];
-        setData(normalized);
-      } catch (e) {
-        setData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    executeDataFetch();
   }, [currentLeague, view]);
 
   const toggleCompare = (team) => {
@@ -89,17 +91,15 @@ function App() {
         <main className="match-center">
           <header className="hub-header">
             <div className="tabs">
-              {['standings', 'scorers', 'matches'].map(v => (
-                <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>
-                  {v.toUpperCase()}
-                </button>
-              ))}
+              <button className={view === 'standings' ? 'active' : ''} onClick={() => setView('standings')}>TABLE</button>
+              <button className={view === 'scorers' ? 'active' : ''} onClick={() => setView('scorers')}>SCORERS</button>
+              <button className={view === 'matches' ? 'active' : ''} onClick={() => setView('matches')}>FIXTURES</button>
             </div>
           </header>
 
           <div className="data-box glass">
             <AnimatePresence mode="wait">
-              {loading ? <div className="loader">SYNCING DATA...</div> : (
+              {loading ? <div className="loader">DECODING DATA...</div> : (
                 <motion.div key={view + currentLeague} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="scroll-content">
                   {view === 'standings' && (
                     <table className="pro-table clickable">
@@ -115,16 +115,16 @@ function App() {
                         ))}
                       </tbody>
                     </table>
-                   )}
+                  )}
                   {view === 'scorers' && data.map(s => (
                     <div key={s.player?.id} className="pro-list-row">
                       <div className="p-meta"><img src={s.team?.crest} width="18" alt=""/> <strong>{s.player?.name}</strong></div>
                       <span className="neon-pts">{s.goals} Goals</span>
                     </div>
                   ))}
-                   {view === 'matches' && data.map(m => (
+                  {view === 'matches' && data.map(m => (
                     <div key={m.id} className="pro-match-card">
-                      <span>{m.homeTeam?.shortName} vs {m.awayTeam?.shortName}</span>
+                      <div className="m-teams">{m.homeTeam?.shortName} vs {m.awayTeam?.shortName}</div>
                       <span className="dim">{new Date(m.utcDate).toLocaleDateString()}</span>
                     </div>
                   ))}
@@ -175,7 +175,7 @@ function App() {
                 </div>
                 <button className="reset-btn-pro" onClick={() => setCompareList([])}>NEW ANALYSIS</button>
               </div>
-            ) : <p className="dim-hint">Select two teams to generate comparison.</p>}
+            ) : <p className="dim-hint">Click 2 teams in the table to compare stats.</p>}
           </div>
         </aside>
       </div>
