@@ -3,123 +3,160 @@ import { motion, AnimatePresence } from 'framer-motion';
 import newsData from './news.json';
 import './App.css';
 
+const LEAGUES = [
+  { name: 'Premier League', id: 'PL' },
+  { name: 'La Liga', id: 'PD' },
+  { name: 'Serie A', id: 'SA' },
+  { name: 'Bundesliga', id: 'BL1' },
+  { name: 'Brasileirão', id: 'BSA' }
+];
+
 function App() {
-  const [activeFilter, setActiveFilter] = useState('All');
-  const [view, setView] = useState('standings'); 
+  const [currentLeague, setCurrentLeague] = useState('PL');
+  const [view, setView] = useState('standings');
   const [data, setData] = useState([]);
   const [tickerData, setTickerData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch Ticker Data (Matches) and Main Content
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      const tickerRes = await fetch('https://itsgonein.com/football-proxy.php?type=matches');
-      const tickerJson = await tickerRes.json();
-      setTickerData(tickerJson.matches?.slice(0, 8) || []);
-    };
-    fetchInitialData();
+   useEffect(() => {
+    fetch(`https://itsgonein.com/football-proxy.php?league=PL&type=matches`)
+      .then(res => res.json())
+      .then(json => setTickerData(json.matches?.slice(0, 15) || []));
   }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-         const response = await fetch(`https://itsgonein.com/football-proxy.php?type=${view}`);
-        const result = await response.json();
-         if (view === 'standings') setData(result.standings?.[0]?.table || []);
-        if (view === 'scorers') setData(result.scorers || []);
-        if (view === 'matches') setData(result.matches || []);
-       } catch (error) {
+        const res = await fetch(`https://itsgonein.com/football-proxy.php?league=${currentLeague}&type=${view}`);
+        const json = await res.json();
+        
+        // Safety mapping logic to prevent data disappearance
+        let finalData = [];
+        if (view === 'standings') finalData = json.standings?.[0]?.table || [];
+        else if (view === 'scorers') finalData = json.scorers || [];
+        else if (view === 'matches') finalData = json.matches || [];
+        
+        setData(finalData);
+      } catch (e) {
         setData([]);
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [view]);
+  }, [currentLeague, view]);
 
   return (
-    <div className="app-container">
-      {/* ⚡️ LIVE NEWS TICKER */}
-      <div className="ticker-wrap">
-        <div className="ticker-move">
+    <div className="pro-app">
+      <div className="ticker-container">
+        <div className="ticker-track">
           {tickerData.map((m, i) => (
-            <div key={i} className="ticker-item">
-              <span className="live-dot"></span>
-              {m.homeTeam?.shortName} {m.score?.fullTime?.home ?? 0} - {m.score?.fullTime?.away ?? 0} {m.awayTeam?.shortName}
-            </div>
+            <span key={i} className="ticker-item">
+              <span className="live-tag">LIVE</span>
+              {m.homeTeam?.shortName} vs {m.awayTeam?.shortName} • {new Date(m.utcDate).getHours()}:00
+            </span>
           ))}
         </div>
       </div>
 
-      <header className="main-header">
-        <motion.h1 initial={{y:-20}} animate={{y:0}} className="brand">ITS<span>GONE</span>IN<span>.</span></motion.h1>
-        <nav className="filter-nav">
-          {['All', 'Arsenal', 'Liverpool', 'Man City'].map(f => (
-            <button key={f} className={activeFilter === f ? 'active' : ''} onClick={() => setActiveFilter(f)}>{f}</button>
-          ))}
-        </nav>
-      </header>
-
-      <main className="dashboard-layout">
-        <section className="column-news">
-          <h2 className="glow-label">BREAKING ANALYSIS</h2>
-          <div className="scroll-box">
-            {newsData.filter(n => activeFilter === 'All' || n.tag === activeFilter).map(news => (
-              <motion.article whileHover={{ scale: 1.02 }} layout key={news.id} className="glass-card news-card">
-                <div className="media-box">
-                  <img src={news.image} alt="" />
-                  <div className="overlay-gradient"></div>
-                  <span className="badge">{news.result}</span>
-                </div>
-                <div className="card-info">
-                  <span className="meta">{news.date}</span>
-                  <h3>{news.title}</h3>
-                 </div>
-              </motion.article>
+      <div className="dashboard-grid">
+        <aside className="sidebar">
+          <h1 className="brand">ITS<span>GONE</span>IN<span>.</span></h1>
+          <nav className="league-nav">
+            {LEAGUES.map(l => (
+              <button key={l.id} className={currentLeague === l.id ? 'active' : ''} onClick={() => setCurrentLeague(l.id)}>
+                {l.name}
+              </button>
             ))}
-          </div>
-        </section>
+          </nav>
+        </aside>
 
-        <section className="column-stats">
-          <div className="center-top">
-            <h2 className="glow-label">MATCH CENTER</h2>
-            <div className="tab-menu">
-              {['standings', 'scorers', 'matches'].map((t) => (
-                <button key={t} className={view === t ? 'on' : ''} onClick={() => setView(t)}>
-                  {t.toUpperCase()}
+        <main className="main-hub">
+          <header className="hub-nav">
+            <div className="view-tabs">
+              {['standings', 'scorers', 'matches'].map(v => (
+                <button key={v} className={view === v ? 'active' : ''} onClick={() => setView(v)}>
+                  {v.toUpperCase()}
                 </button>
               ))}
             </div>
-          </div>
+          </header>
 
-          <div className="data-panel glass-card">
-            <AnimatePresence mode="wait">
-              {loading ? (
-                <div className="loader">SYNCING...</div>
-              ) : (
-                <motion.div key={view} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="scroll-box">
-                  {view === 'standings' && (
-                    <table className="pro-table">
-                      <thead><tr><th>#</th><th>TEAM</th><th>GD</th><th>PTS</th></tr></thead>
-                      <tbody>
-                        {data.map(t => (
-                          <tr key={t.team?.id}>
-                            <td>{t.position}</td>
-                            <td className="t-row"><img src={t.team?.crest} width="22"/> {t.team?.shortName}</td>
-                            <td>{t.goalDifference}</td><td className="accent-text">{t.points}</td>
-                          </tr>
+          <div className="hub-grid">
+            <section className="stats-glass">
+              <AnimatePresence mode="wait">
+                {loading ? (
+                  <div className="loader">CALIBRATING STATS...</div>
+                ) : (
+                  <motion.div key={view + currentLeague} initial={{opacity:0, y: 10}} animate={{opacity:1, y: 0}} className="scroll-panel">
+                    {view === 'standings' && (
+                      <table className="pro-table">
+                        <thead><tr><th>POS</th><th>TEAM</th><th>GD</th><th>PTS</th></tr></thead>
+                        <tbody>
+                          {data.map(t => (
+                            <tr key={t.team?.id}>
+                              <td>{t.position}</td>
+                              <td className="t-cell"><img src={t.team?.crest} width="22" /> {t.team?.shortName}</td>
+                              <td>{t.goalDifference}</td>
+                              <td className="neon-pts">{t.points}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {view === 'scorers' && (
+                      <div className="scorers-list">
+                        {data.map(s => (
+                          <div key={s.player?.id} className="stat-row">
+                            <div className="player-meta">
+                              <span className="p-name">{s.player?.name}</span>
+                              <span className="p-team">{s.team?.shortName}</span>
+                            </div>
+                            <div className="p-vals">
+                              <span className="v-main">{s.goals} G</span>
+                              <span className="v-sub">{s.assists || 0} A</span>
+                            </div>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {/* ... Scorers & Matches logic remains same as previous fix ... */}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </section>
+
+            {/* 🎯 THE TEAM OF THE WEEK / FANTASY SCOUT */}
+            <section className="scout-column">
+              <h2 className="glow-label">FANTASY SCOUT</h2>
+              <div className="pitch-card glass">
+                <div className="pitch-visual">
+                  {/* Automated "Top Player" Pitch Positioning */}
+                  {view === 'scorers' && data[0] ? (
+                    <div className="pitch-player striker">
+                      <div className="player-dot"></div>
+                      <p>{data[0].player.name}</p>
+                      <span>MVP</span>
+                    </div>
+                  ) : <p className="pitch-loading">Analyzing Pitch Performance...</p>}
+                </div>
+                <div className="scout-insights">
+                  <p><strong>Hot Streak:</strong> {data[0]?.player.name || "N/A"} has {data[0]?.goals || 0} goals.</p>
+                </div>
+              </div>
+              
+              <div className="news-stack">
+                {newsData.slice(0, 2).map(n => (
+                  <div key={n.id} className="mini-card glass">
+                    <img src={n.image} />
+                    <span>{n.title}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
-        </section>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

@@ -1,30 +1,35 @@
-:root { --accent: #00ff88; --glow: rgba(0, 255, 136, 0.3); --bg: #05070a; --panel: rgba(15, 23, 42, 0.8); }
-body { background: var(--bg); color: #fff; font-family: 'Outfit', sans-serif; margin: 0; overflow: hidden; }
+:root { --neon: #00ff88; --dark: #05070a; --glass: rgba(15, 23, 42, 0.8); }
+body { background: var(--dark); color: white; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; }
 
-/* ⚡️ THE TICKER ANIMATION */
-.ticker-wrap { width: 100%; overflow: hidden; background: #111; border-bottom: 2px solid var(--accent); padding: 10px 0; }
-.ticker-move { display: flex; width: max-content; animation: ticker 30s linear infinite; }
-.ticker-item { padding: 0 40px; font-weight: 800; font-size: 0.9rem; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
-.live-dot { height: 8px; width: 8px; background: red; border-radius: 50%; box-shadow: 0 0 10px red; animation: pulse 1s infinite; }
+/* ⚡️ LIVE TICKER */
+.ticker-container { background: #000; border-bottom: 2px solid var(--neon); padding: 12px 0; overflow: hidden; }
+.ticker-track { display: flex; animation: scroll-ticker 40s linear infinite; width: max-content; }
+.ticker-item { padding: 0 40px; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 10px; border-right: 1px solid #111; }
+.live-tag { background: red; padding: 2px 6px; border-radius: 4px; font-size: 0.6rem; animation: pulse 1s infinite; }
+@keyframes scroll-ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-@keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+/* 💎 DASHBOARD LAYOUT */
+.pro-app { height: 100vh; display: flex; flex-direction: column; }
+.dashboard-grid { display: grid; grid-template-columns: 260px 1fr; flex-grow: 1; overflow: hidden; }
 
-/* 💎 GLASSMORPHISM & LAYOUT */
-.app-container { max-width: 1600px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; }
-.dashboard-layout { display: grid; grid-template-columns: 1fr 480px; gap: 40px; flex-grow: 1; overflow: hidden; padding: 20px; }
+/* SIDEBAR & NAV */
+.sidebar { background: #0a0f1e; padding: 40px; border-right: 1px solid rgba(255,255,255,0.05); }
+.brand { font-size: 1.8rem; font-weight: 900; margin-bottom: 60px; }
+.brand span { color: var(--neon); text-shadow: 0 0 15px var(--neon); }
+.league-nav button { display: block; width: 100%; text-align: left; background: none; border: none; color: #64748b; padding: 15px 0; cursor: pointer; font-weight: 700; transition: 0.3s; }
+.league-nav button.active { color: var(--neon); border-left: 3px solid var(--neon); padding-left: 15px; }
 
-.glass-card { background: var(--panel); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; backdrop-filter: blur(20px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.scroll-box { height: calc(100vh - 320px); overflow-y: auto; padding: 20px; scrollbar-width: none; }
+/* 🏟 PITCH VISUALIZER */
+.pitch-card { height: 400px; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+.pitch-visual { flex-grow: 1; background: url('https://itsgonein.com/pitch-bg.png') center/cover; position: relative; border-radius: 12px; margin-bottom: 15px; }
+.pitch-player { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; }
+.striker { top: 20px; }
+.player-dot { height: 12px; width: 12px; background: var(--neon); border-radius: 50%; margin: 0 auto 5px; box-shadow: 0 0 10px var(--neon); }
+.pitch-player p { font-size: 0.7rem; font-weight: 800; margin: 0; }
+.pitch-player span { font-size: 0.5rem; color: var(--neon); text-transform: uppercase; }
 
-/* 🟢 NEON ACCENTS */
-.brand span { color: var(--accent); text-shadow: 0 0 15px var(--glow); }
-.glow-label { font-size: 0.8rem; color: var(--accent); font-weight: 900; letter-spacing: 3px; margin-bottom: 20px; text-shadow: 0 0 10px var(--glow); }
-.accent-text { color: var(--accent); font-weight: 900; font-size: 1.1rem; }
-
-/* CARD HOVERS */
-.news-card { cursor: pointer; transition: 0.3s; margin-bottom: 25px; }
-.media-box { height: 250px; position: relative; border-radius: 16px; overflow: hidden; }
-.media-box img { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.news-card:hover img { transform: scale(1.1); }
-.overlay-gradient { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%); }
+/* STATS */
+.scroll-panel { height: calc(100vh - 350px); overflow-y: auto; scrollbar-width: none; }
+.stats-glass { background: var(--glass); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; backdrop-filter: blur(20px); padding: 30px; }
+.pro-table td { padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.neon-pts { color: var(--neon); font-weight: 900; font-size: 1.2rem; }
