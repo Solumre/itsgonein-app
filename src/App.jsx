@@ -4,79 +4,95 @@ import './App.css';
 const App = () => {
   const [activeTab, setActiveTab] = useState('TABLE');
 
-  // Sample Data
-  const teams = [
-    { rank: 1, name: 'Arsenal', gd: 20, pts: 36, logo: '🔴' },
-    { rank: 2, name: 'Man City', gd: 22, pts: 34, logo: '🔵' },
-    { rank: 3, name: 'Aston Villa', gd: 8, pts: 33, logo: '🟣' },
-    { rank: 4, name: 'Chelsea', gd: 12, pts: 28, logo: '🔵' },
-    { rank: 5, name: 'Crystal Palace', gd: 5, pts: 26, logo: '🦅' },
+  // Realistic Data Sets
+  const tableData = [
+    { rank: 1, name: 'Arsenal', gd: 20, pts: 36, color: '#ef0107' },
+    { rank: 2, name: 'Man City', gd: 22, pts: 34, color: '#6caded' },
+    { rank: 3, name: 'Aston Villa', gd: 8, pts: 33, color: '#95bfe5' },
+    { rank: 4, name: 'Chelsea', gd: 12, pts: 28, color: '#034694' },
+    { rank: 5, name: 'Crystal Palace', gd: 5, pts: 26, color: '#1b458f' },
   ];
 
-  const scorers = [
-    { rank: 1, name: 'Erling Haaland', team: 'Man City', goals: 14 },
-    { rank: 2, name: 'Mohamed Salah', team: 'Liverpool', goals: 11 },
+  const scorersData = [
+    { rank: 1, name: 'Erling Haaland', team: 'Man City', goals: 14, shots: 45 },
+    { rank: 2, name: 'Mohamed Salah', team: 'Liverpool', goals: 11, shots: 38 },
+    { rank: 3, name: 'Ollie Watkins', team: 'Aston Villa', goals: 10, shots: 32 },
   ];
 
-  const tickerMatches = [
-    "Man City vs West Ham", "Wolverhampton vs Brentford", 
-    "Tottenham vs Liverpool", "Everton vs Arsenal"
+  const fixturesData = [
+    { home: 'Liverpool', away: 'Arsenal', time: 'SUN 16:30', date: 'Dec 22' },
+    { home: 'West Ham', away: 'Man Utd', time: 'SAT 12:30', date: 'Dec 21' },
+    { home: 'Spurs', away: 'Chelsea', time: 'SUN 14:00', date: 'Dec 22' },
   ];
 
   return (
-    <div className="dashboard">
-      {/* 1. TICKER FIX: Added separators and spacing */}
-      <div className="ticker-bar">
-        <div className="ticker-content">
-          {tickerMatches.map((match, i) => (
-            <span key={i} className="ticker-item">
-              {match} <span className="ticker-sep">|</span>
-            </span>
+    <div className="app-container">
+      {/* PREMIUM TICKER BAR */}
+      <header className="top-ticker">
+        <div className="ticker-scroll">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="ticker-group">
+              <span>Wolverhampton vs Brentford <b className="sep">|</b></span>
+              <span>Tottenham vs Liverpool <b className="sep">|</b></span>
+              <span>Everton vs Arsenal <b className="sep">|</b></span>
+              <span>Man City vs West Ham <b className="sep">|</b></span>
+            </div>
           ))}
         </div>
-      </div>
+      </header>
 
-      <div className="main-layout">
+      <div className="dashboard-layout">
         {/* SIDEBAR */}
-        <aside className="sidebar">
-          <h1 className="logo">ITS<span>GONE</span>IN<span>.</span></h1>
-          <nav>
-            <p className="nav-label">ELITE CIRCUITS</p>
-            <ul>
-              <li className="active">Premier League</li>
-              <li>La Liga</li>
-              <li>Serie A</li>
-              <li>Bundesliga</li>
-            </ul>
-          </nav>
-        </aside>
+        <nav className="side-nav">
+          <div className="brand">
+            ITS<span className="accent-green">GONE</span>IN<span className="accent-green">.</span>
+          </div>
+          <div className="nav-section">
+            <label>ELITE CIRCUITS</label>
+            <div className="nav-item active">Premier League</div>
+            <div className="nav-item">La Liga</div>
+            <div className="nav-item">Serie A</div>
+            <div className="nav-item">Bundesliga</div>
+          </div>
+        </nav>
 
-        {/* MAIN CONTENT */}
-        <main className="content">
-          <div className="tabs">
-            <button className={activeTab === 'TABLE' ? 'active' : ''} onClick={() => setActiveTab('TABLE')}>TABLE</button>
-            <button className={activeTab === 'SCORERS' ? 'active' : ''} onClick={() => setActiveTab('SCORERS')}>SCORERS</button>
-            <button className={activeTab === 'FIXTURES' ? 'active' : ''} onClick={() => setActiveTab('FIXTURES')}>FIXTURES</button>
+        {/* CENTER CONTENT */}
+        <main className="main-stage">
+          <div className="content-tabs">
+            {['TABLE', 'SCORERS', 'FIXTURES'].map(tab => (
+              <button 
+                key={tab}
+                className={activeTab === tab ? 'tab active' : 'tab'}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
 
-          <div className="table-container">
+          <div className="data-card">
             {activeTab === 'TABLE' && (
-              <table className="stats-table">
+              <table className="pro-table">
                 <thead>
                   <tr>
-                    <th>#</th>
+                    <th width="50">#</th>
                     <th>TEAM</th>
-                    <th>GD</th>
-                    <th>PTS</th>
+                    <th className="text-center">GD</th>
+                    <th className="text-right">PTS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {teams.map((team) => (
-                    <tr key={team.rank}>
-                      <td>{team.rank}</td>
-                      <td><span className="team-icon">{team.logo}</span> {team.name}</td>
-                      <td>{team.gd}</td>
-                      <td className="pts-highlight">{team.pts}</td>
+                  {tableData.map((t) => (
+                    <tr key={t.rank}>
+                      <td>{t.rank}</td>
+                      <td>
+                        <div className="team-cell">
+                          <span className="team-dot" style={{ backgroundColor: t.color }}></span>
+                          {t.name}
+                        </div>
+                      </td>
+                      <td className="text-center">{t.gd}</td>
+                      <td className="text-right highlight-green">{t.pts}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -84,33 +100,55 @@ const App = () => {
             )}
 
             {activeTab === 'SCORERS' && (
-              <div className="placeholder-view">
-                <h3>Top Scorers</h3>
-                {scorers.map(s => <div key={s.name} className="list-item">{s.rank}. {s.name} - {s.goals} Goals</div>)}
+              <div className="scorers-list">
+                {scorersData.map((s) => (
+                  <div key={s.name} className="stat-row">
+                    <span className="stat-rank">{s.rank}</span>
+                    <div className="stat-info">
+                      <span className="stat-name">{s.name}</span>
+                      <span className="stat-team">{s.team}</span>
+                    </div>
+                    <div className="stat-value">{s.goals} <small>GOALS</small></div>
+                  </div>
+                ))}
               </div>
             )}
 
             {activeTab === 'FIXTURES' && (
-              <div className="placeholder-view">
-                <h3>Upcoming Fixtures</h3>
-                <div className="list-item">Liverpool vs Arsenal - SUN 16:00</div>
+              <div className="fixtures-grid">
+                {fixturesData.map((f, i) => (
+                  <div key={i} className="fixture-card">
+                    <div className="fixture-date">{f.date} • {f.time}</div>
+                    <div className="fixture-teams">
+                      <span>{f.home}</span>
+                      <span className="vs">VS</span>
+                      <span>{f.away}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </main>
 
-        {/* RIGHT PANEL: FIXING THE PITCH */}
-        <section className="analyst-panel">
-          <p className="panel-label">TACTICAL ANALYST</p>
-          <div className="pitch">
-            <div className="pitch-center-circle"></div>
-            <div className="pitch-center-line"></div>
-            <div className="pitch-penalty-area"></div>
+        {/* RIGHT ANALYST PANEL */}
+        <section className="analyst-view">
+          <label className="panel-label">TACTICAL ANALYST</label>
+          <div className="pro-pitch">
+            <div className="pitch-lines">
+              <div className="box-top"></div>
+              <div className="center-circle"></div>
+              <div className="center-line"></div>
+              <div className="box-bottom"></div>
+            </div>
+            <div className="pitch-overlay">
+               <p>Select teams to analyze</p>
+            </div>
           </div>
-          
-          <div className="h2h-section">
-            <p className="panel-label">H2H COMPARISON</p>
-            <p className="h2h-hint">Click 2 teams in the table to compare stats.</p>
+
+          <div className="h2h-footer">
+            <label className="panel-label">H2H COMPARISON</label>
+            <p className="hint">Click 2 teams in the table to compare stats.</p>
           </div>
         </section>
       </div>
