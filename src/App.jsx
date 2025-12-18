@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import newsData from './news.json';
-import './App.css';
+ import './App.css';
 
 const LEAGUES = [
   { name: 'Premier League', id: 'PL', color: '#00ff88' },
@@ -19,8 +18,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [compareList, setCompareList] = useState([]);
 
-  // One definitive function for data fetching
-  const fetchEliteStats = async () => {
+  // One consistent fetch function to prevent ReferenceErrors
+  const syncData = async () => {
     try {
       setLoading(true);
       const res = await fetch(`https://itsgonein.com/football-proxy.php?league=${currentLeague}&type=${view}`);
@@ -32,6 +31,7 @@ function App() {
       else if (view === 'matches') normalized = json.matches || [];
       setData(normalized);
     } catch (e) {
+      console.error("Fetch Error:", e);
       setData([]);
     } finally {
       setLoading(false);
@@ -43,9 +43,9 @@ function App() {
       .then(res => res.json())
       .then(json => setTickerData(json.matches?.slice(0, 15) || []));
   }, []);
-ß
+
   useEffect(() => {
-    fetchEliteStats();
+    syncData();
   }, [currentLeague, view]);
 
   const toggleCompare = (team) => {
@@ -58,12 +58,12 @@ function App() {
   };
 
   return (
-    <div className="pro-app">
-      {/* ⚡️ LIVE TICKER */}
+    <div className="elite-app">
+      {/* ⚡️ LIVE BROADCAST TICKER */}
       <div className="ticker-panel">
         <div className="ticker-stream">
           {tickerData.map((m, i) => (
-            <div key={i} className="ticker-item">
+            <div key={i} className="ticker-match">
               <span className="live-dot"></span>
               {m.homeTeam?.shortName} vs {m.awayTeam?.shortName}
             </div>
@@ -71,8 +71,8 @@ function App() {
         </div>
       </div>
 
-      <div className="dashboard-grid">
-        {/* SIDEBAR NAVIGATION */}
+      <div className="pro-grid">
+        {/* SIDEBAR: NEON BRANDING */}
         <aside className="sidebar">
           <h1 className="brand">ITS<span>GONE</span>IN<span>.</span></h1>
           <nav className="league-nav">
@@ -90,8 +90,8 @@ function App() {
           </nav>
         </aside>
 
-        {/* MAIN DATA HUB */}
-        <main className="main-hub">
+        {/* MAIN HUB: DATA DISPLAY */}
+        <main className="match-center">
           <header className="hub-header">
             <div className="tabs">
               <button className={view === 'standings' ? 'active' : ''} onClick={() => setView('standings')}>TABLE</button>
@@ -102,16 +102,14 @@ function App() {
 
           <div className="data-box glass">
             <AnimatePresence mode="wait">
-              {loading ? (
-                <div className="loader">DECRYPTING STATS...</div>
-              ) : (
+              {loading ? <div className="loader">SYNCING ELITE DATA...</div> : (
                 <motion.div key={view + currentLeague} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="scroll-content">
                   {view === 'standings' && (
                     <table className="pro-table clickable">
                       <thead><tr><th>#</th><th>TEAM</th><th>GD</th><th>PTS</th></tr></thead>
                       <tbody>
                         {data.map(t => (
-                          <tr key={t.team?.id} onClick={() => toggleCompare(t)} className={compareList.find(c => c.team?.id === t.team?.id) ? 'selected' : ''}>
+                          <tr key={t.team?.id} onClick={() => toggleCompare(t)} className={compareList.some(c => c.team?.id === t.team?.id) ? 'selected' : ''}>
                             <td>{t.position}</td>
                             <td className="t-cell"><img src={t.team?.crest} width="22" alt="" /> {t.team?.shortName}</td>
                             <td>{t.goalDifference}</td>
@@ -121,16 +119,26 @@ function App() {
                       </tbody>
                     </table>
                   )}
+
                   {view === 'scorers' && data.map(s => (
                     <div key={s.player?.id} className="pro-list-row">
-                      <div className="p-meta"><img src={s.team?.crest} width="20" alt=""/> <strong>{s.player?.name}</strong></div>
+                      <div className="p-meta">
+                        <img src={s.team?.crest} width="20" alt=""/> 
+                        <strong>{s.player?.name}</strong>
+                        <span className="team-sub">{s.team?.shortName}</span>
+                      </div>
                       <span className="neon-pts">{s.goals} Goals</span>
                     </div>
                   ))}
+
                   {view === 'matches' && data.map(m => (
                     <div key={m.id} className="pro-match-card">
-                      <div className="m-teams">{m.homeTeam?.shortName} vs {m.awayTeam?.shortName}</div>
-                      <span className="dim-text">{new Date(m.utcDate).toLocaleDateString()}</span>
+                      <div className="m-teams">
+                        <span>{m.homeTeam?.shortName}</span>
+                        <span className="vs-tag">VS</span>
+                        <span>{m.awayTeam?.shortName}</span>
+                      </div>
+                      <span className="m-date">{new Date(m.utcDate).toLocaleDateString()}</span>
                     </div>
                   ))}
                 </motion.div>
@@ -139,7 +147,7 @@ function App() {
           </div>
         </main>
 
-        {/* TACTICAL ANALYST */}
+        {/* TACTICAL ANALYST: GRASS PITCH */}
         <aside className="analyst-panel">
           <h2 className="sidebar-label">TACTICAL ANALYST</h2>
           <div className="pitch-container glass">
@@ -153,14 +161,15 @@ function App() {
                 ))
               ) : view === 'scorers' && data[0] ? (
                 <div className="pitch-marker striker">
-                  <div className="marker-glow"></div>
+                  <div className="marker-glow accent"></div>
+                  <span className="marker-label">TOP SCORER</span>
                   <span className="marker-name">{data[0].player.name}</span>
-                  <span className="marker-label">MVP</span>
                 </div>
-              ) : <p className="pitch-placeholder">Select teams to analyze</p>}
+              ) : <p className="pitch-placeholder">Select teams to analyze tactical gap</p>}
             </div>
           </div>
 
+          {/* H2H COMPARISON ENGINE */}
           <div className="h2h-comparison-card glass">
             <h3 className="card-title">H2H COMPARISON</h3>
             {compareList.length === 2 ? (
@@ -180,7 +189,7 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <button className="reset-btn-pro" onClick={() => setCompareList([])}>NEW ANALYSIS</button>
+                <button className="reset-btn-pro" onClick={() => setCompareList([])}>RESET ANALYSIS</button>
               </div>
             ) : <p className="dim-hint">Click 2 teams in the table to compare stats.</p>}
           </div>
