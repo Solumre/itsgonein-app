@@ -8,30 +8,34 @@ body { background: var(--dark); color: white; font-family: 'Inter', sans-serif; 
 .live-dot { height: 8px; width: 8px; background: red; border-radius: 50%; box-shadow: 0 0 10px red; }
 @keyframes ticker-run { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-/* 💎 THE PRO GRID */
+/* 💎 THE 3-COLUMN GRID */
 .pro-grid { display: grid; grid-template-columns: 260px 1fr 380px; height: calc(100vh - 50px); overflow: hidden; }
 
 /* SIDEBAR */
 .elite-sidebar { background: #0a0f1e; padding: 40px; border-right: 1px solid rgba(255,255,255,0.05); }
 .brand span { color: var(--neon); text-shadow: 0 0 15px var(--neon); }
-.league-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-sub); padding: 15px 0; cursor: pointer; font-weight: 700; transition: 0.3s; }
-.league-btn.active { color: var(--league-glow, var(--neon)); border-left: 3px solid var(--league-glow); padding-left: 15px; text-shadow: 0 0 10px var(--league-glow); }
+.league-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-sub); padding: 15px 0; cursor: pointer; font-weight: 700; }
+.league-btn.active { color: var(--league-glow, var(--neon)); border-left: 3px solid var(--league-glow); padding-left: 15px; }
 
 /* MAIN CONTENT */
 .match-center { padding: 30px; overflow: hidden; display: flex; flex-direction: column; }
 .data-display { flex-grow: 1; border-radius: 24px; padding: 25px; overflow: hidden; }
-.scroll-content { height: calc(100vh - 300px); overflow-y: auto; scrollbar-width: none; }
+.scroll-content { height: calc(100vh - 280px); overflow-y: auto; scrollbar-width: none; }
 
-/* ANALYST PANEL */
-.analyst-panel { padding: 30px; background: rgba(0,0,0,0.2); border-left: 1px solid rgba(255,255,255,0.05); }
-.pitch-box { height: 380px; margin: 20px 0; overflow: hidden; }
-.pitch-canvas { height: 320px; background: url('https://itsgonein.com/pitch-bg.png') center/cover; position: relative; border-radius: 12px; }
+/* 🏟 TACTICAL ANALYST */
+.analyst-panel { padding: 30px; background: rgba(0,0,0,0.2); border-left: 1px solid rgba(255,255,255,0.05); overflow-y: auto; }
+.pitch-box { height: 350px; margin: 20px 0; position: relative; }
+.pitch-canvas { height: 100%; background: #111 url('https://itsgonein.com/pitch-bg.png') center/cover; position: relative; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
+.pitch-marker { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); text-align: center; }
 
-/* TABLE & DATA */
+/* CLEAN LISTS */
 .elite-table { width: 100%; border-collapse: collapse; }
-.elite-table td { padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
-.pts-neon { color: var(--neon); font-weight: 900; font-size: 1.1rem; }
-.marked { background: rgba(0, 255, 136, 0.1) !important; color: var(--neon); }
-
-.label-dim { font-size: 0.7rem; color: var(--text-sub); letter-spacing: 2px; font-weight: 800; margin-bottom: 20px; }
-.glass { background: var(--glass); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(20px); }
+.elite-table td { padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.team-cell { display: flex; align-items: center; gap: 12px; font-weight: 700; }
+.stat-row-pro { display: flex; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
+.p-details { display: flex; align-items: center; gap: 10px; }
+.p-details span { color: var(--text-sub); font-size: 0.75rem; }
+.fixture-row-pro { padding: 20px; background: rgba(255,255,255,0.02); border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.f-main { display: flex; align-items: center; gap: 20px; font-weight: 800; }
+.vs { color: var(--neon); font-size: 0.7rem; }
+.pts-neon { color: var(--neon); font-weight: 900; }
