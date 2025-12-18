@@ -137,39 +137,74 @@ function App() {
           </div>
         </main>
 
-         <aside className="analyst-panel">
-          <h2 className="label-dim">TACTICAL ANALYST</h2>
-          <div className="pitch-box glass">
-             <div className="pitch-canvas">
-                {/* Fixed Tactical Box: Rendering compared teams or top scorer */}
-                {compareList.length > 0 ? (
-                  compareList.map((c, i) => (
-                    <div key={c.team.id} className={`pitch-marker pos-${i}`}>
-                      <div className="glow-dot"></div>
-                      <p>{c.team.shortName}</p>
-                    </div>
-                  ))
-                ) : view === 'scorers' && data[0] && (
-                  <div className="pitch-marker striker">
-                    <div className="glow-dot"></div>
-                    <p>{data[0]?.player?.name}</p>
-                   </div>
-                )}
-             </div>
+       {/* --- REORGANIZED ANALYST PANEL --- */}
+<aside className="analyst-panel">
+  <div className="panel-header">
+    <h2 className="glow-label">TACTICAL ANALYST</h2>
+    <p className="sub-label">Live Player & Team Tracking</p>
+  </div>
+
+  {/* THE PITCH VISUALIZER */}
+  <div className="pitch-container glass">
+    <div className="football-pitch">
+      {/* Dynamic Marker Logic */}
+      {compareList.length > 0 ? (
+        compareList.map((team, i) => (
+          <motion.div 
+            key={team.team.id} 
+            className={`pitch-marker team-pos-${i}`}
+            initial={{ scale: 0 }} 
+            animate={{ scale: 1 }}
+          >
+            <div className="marker-glow"></div>
+            <img src={team.team.crest} alt="" className="pitch-crest" />
+            <span className="marker-name">{team.team.shortName}</span>
+          </motion.div>
+        ))
+      ) : view === 'scorers' && data[0] ? (
+        <motion.div className="pitch-marker striker" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="marker-glow accent"></div>
+          <span className="marker-label">TOP SCORER</span>
+          <span className="marker-name">{data[0].player.name}</span>
+        </motion.div>
+      ) : (
+        <p className="pitch-placeholder">Select teams to analyze tactical gap</p>
+      )}
+    </div>
+  </div>
+
+  {/* THE H2H COMPARISON CARD */}
+  <div className="h2h-comparison-card glass">
+    <h3 className="card-title">H2H COMPARISON</h3>
+    {compareList.length === 2 ? (
+      <div className="comparison-engine">
+        <div className="comp-row teams">
+          <span>{compareList[0].team.shortName}</span>
+          <span className="vs-badge">VS</span>
+          <span>{compareList[1].team.shortName}</span>
+        </div>
+        
+        <div className="stat-bars">
+          <div className="stat-group">
+            <label>POINTS</label>
+            <div className="bar-wrapper">
+              <span className="val">{compareList[0].points}</span>
+              <div className="bar"><div className="fill" style={{ width: '55%' }}></div></div>
+              <span className="val">{compareList[1].points}</span>
+            </div>
           </div>
-          
-          <div className="h2h-summary glass neon-border">
-            <h3>H2H COMPARISON</h3>
-            {compareList.length === 2 ? (
-              <div className="h2h-row">
-                <div className="h2h-item"><span>{compareList[0]?.points}</span><label>PTS</label></div>
-                <div className="h2h-vs">VS</div>
-                <div className="h2h-item"><span>{compareList[1]?.points}</span><label>PTS</label></div>
-                <button className="reset-btn" onClick={() => setCompareList([])}>RESET</button>
-              </div>
-            ) : <p className="hint">Select 2 teams from the table to see H2H stats.</p>}
-          </div>
-        </aside>
+          {/* Add more stat groups for GD, Wins, etc. */}
+        </div>
+        
+        <button className="reset-btn-pro" onClick={() => setCompareList([])}>NEW ANALYSIS</button>
+      </div>
+    ) : (
+      <div className="empty-state">
+        <p>Click two teams in the standings to generate a tactical comparison.</p>
+      </div>
+    )}
+  </div>
+</aside>
       </div>
     </div>
   );
