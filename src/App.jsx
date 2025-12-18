@@ -19,16 +19,16 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [compareList, setCompareList] = useState([]);
 
-  // Fetch Ticker Data (Matches)
+  // 1. Fetch Ticker Data (Matches)
   useEffect(() => {
     fetch(`https://itsgonein.com/football-proxy.php?league=PL&type=matches`)
       .then(res => res.json())
       .then(json => setTickerData(json.matches?.slice(0, 15) || []));
   }, []);
 
-  // Fetch Main Content
+  // 2. Fetch Main Content with Crash Protection
   useEffect(() => {
-    const fetchEliteStats = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         const res = await fetch(`https://itsgonein.com/football-proxy.php?league=${currentLeague}&type=${view}`);
@@ -46,12 +46,12 @@ function App() {
         setLoading(false);
       }
     };
-    fetchEliteStats();
+    fetchData();
   }, [currentLeague, view]);
 
   const toggleCompare = (team) => {
-    if (compareList.find(t => t.team.id === team.team.id)) {
-      setCompareList(compareList.filter(t => t.team.id !== team.team.id));
+    if (compareList.find(t => t.team?.id === team.team?.id)) {
+      setCompareList(compareList.filter(t => t.team?.id !== team.team?.id));
     } else if (compareList.length < 2) {
       setCompareList([...compareList, team]);
     }
@@ -90,8 +90,7 @@ function App() {
           </nav>
         </aside>
 
-        {/* MAIN CONTENT HUB */}
-        <main className="main-hub">
+         <main className="main-hub">
           <header className="hub-header">
             <div className="tabs">
               {['standings', 'scorers', 'matches'].map(v => (
@@ -105,20 +104,18 @@ function App() {
           <div className="hub-content">
             <section className="stats-glass">
               <AnimatePresence mode="wait">
-                {loading ? <div className="loader">SYNCING ELITE DATA...</div> : (
+                {loading ? (
+                  <div className="loader">SYNCING DATA...</div>
+                ) : (
                   <motion.div key={view + currentLeague} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="scroll-panel">
                     {view === 'standings' && (
                       <table className="pro-table clickable">
                         <thead><tr><th>#</th><th>TEAM</th><th>GD</th><th>PTS</th></tr></thead>
                         <tbody>
                           {data.map(t => (
-                            <tr 
-                              key={t.team?.id} 
-                              onClick={() => toggleCompare(t)}
-                              className={compareList.find(c => c.team.id === t.team.id) ? 'selected' : ''}
-                            >
+                            <tr key={t.team?.id} onClick={() => toggleCompare(t)} className={compareList.find(c => c.team?.id === t.team?.id) ? 'selected' : ''}>
                               <td>{t.position}</td>
-                              <td className="t-cell"><img src={t.team?.crest} width="22" /> {t.team?.shortName}</td>
+                              <td className="t-cell"><img src={t.team?.crest} width="22" alt="" /> {t.team?.shortName}</td>
                               <td>{t.goalDifference}</td>
                               <td className="neon-pts">{t.points}</td>
                             </tr>
@@ -128,14 +125,14 @@ function App() {
                     )}
                     {view === 'scorers' && data.map(s => (
                       <div key={s.player?.id} className="list-row">
-                        <div className="p-info"><strong>{s.player?.name}</strong><span>{s.team?.shortName}</span></div>
-                        <span className="neon-pts">{s.goals} G</span>
+                        <span><strong>{s.player?.name}</strong> ({s.team?.shortName})</span>
+                        <span className="neon-pts">{s.goals} Goals</span>
                       </div>
                     ))}
-                    {view === 'matches' && data.slice(0, 10).map(m => (
-                      <div key={m.id} className="list-row match-row">
-                        <span>{m.homeTeam.shortName} vs {m.awayTeam.shortName}</span>
-                        <span className="dim">{new Date(m.utcDate).toLocaleDateString()}</span>
+                    {view === 'matches' && data.slice(0, 15).map(m => (
+                      <div key={m.id} className="list-row">
+                        <span>{m.homeTeam?.shortName} vs {m.awayTeam?.shortName}</span>
+                        <span className="dim-text">{new Date(m.utcDate).toLocaleDateString()}</span>
                       </div>
                     ))}
                   </motion.div>
@@ -148,19 +145,23 @@ function App() {
               <h2 className="glow-label">TACTICAL ANALYST</h2>
               {compareList.length === 2 ? (
                 <div className="h2h-card glass">
-                  <div className="h2h-header"><img src={compareList[0].team.crest} width="40"/> VS <img src={compareList[1].team.crest} width="40"/></div>
+                  <div className="h2h-header">
+                    <img src={compareList[0].team?.crest} width="40" alt="" />
+                    <span>VS</span>
+                    <img src={compareList[1].team?.crest} width="40" alt="" />
+                  </div>
                   <div className="h2h-stat"><span>{compareList[0].points}</span><label>PTS</label><span>{compareList[1].points}</span></div>
                   <div className="h2h-stat"><span>{compareList[0].goalDifference}</span><label>GD</label><span>{compareList[1].goalDifference}</span></div>
-                  <button className="clear-btn" onClick={() => setCompareList([])}>RESET</button>
+                  <button className="reset-btn" onClick={() => setCompareList([])}>RESET H2H</button>
                 </div>
               ) : (
                 <div className="pitch-card glass">
                   <div className="pitch-visual">
                     {view === 'scorers' && data[0] && (
-                      <div className="pitch-player striker"><div className="player-glow"></div><p>{data[0].player.name}</p></div>
+                      <div className="pitch-player striker"><div className="player-glow"></div><p>{data[0].player?.name}</p></div>
                     )}
                   </div>
-                  <p className="dim-hint">Click two teams in the table to compare H2H.</p>
+                  <p className="hint-text">Select two teams to compare H2H stats.</p>
                 </div>
               )}
             </section>
