@@ -19,8 +19,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [compareList, setCompareList] = useState([]);
 
-  // Fixes the ReferenceError by ensuring names match exactly
-  const executeDataFetch = async () => {
+  // One definitive function for data fetching
+  const fetchEliteStats = async () => {
     try {
       setLoading(true);
       const res = await fetch(`https://itsgonein.com/football-proxy.php?league=${currentLeague}&type=${view}`);
@@ -43,9 +43,9 @@ function App() {
       .then(res => res.json())
       .then(json => setTickerData(json.matches?.slice(0, 15) || []));
   }, []);
-
+ß
   useEffect(() => {
-    executeDataFetch();
+    fetchEliteStats();
   }, [currentLeague, view]);
 
   const toggleCompare = (team) => {
@@ -59,6 +59,7 @@ function App() {
 
   return (
     <div className="pro-app">
+      {/* ⚡️ LIVE TICKER */}
       <div className="ticker-panel">
         <div className="ticker-stream">
           {tickerData.map((m, i) => (
@@ -70,7 +71,8 @@ function App() {
         </div>
       </div>
 
-      <div className="pro-grid">
+      <div className="dashboard-grid">
+        {/* SIDEBAR NAVIGATION */}
         <aside className="sidebar">
           <h1 className="brand">ITS<span>GONE</span>IN<span>.</span></h1>
           <nav className="league-nav">
@@ -80,7 +82,7 @@ function App() {
                 key={l.id} 
                 className={`league-btn ${currentLeague === l.id ? 'active' : ''}`}
                 onClick={() => { setCurrentLeague(l.id); setCompareList([]); }}
-                style={{ '--league-color': l.color }}
+                style={{ '--league-glow': l.color }}
               >
                 {l.name}
               </button>
@@ -88,7 +90,8 @@ function App() {
           </nav>
         </aside>
 
-        <main className="match-center">
+        {/* MAIN DATA HUB */}
+        <main className="main-hub">
           <header className="hub-header">
             <div className="tabs">
               <button className={view === 'standings' ? 'active' : ''} onClick={() => setView('standings')}>TABLE</button>
@@ -99,7 +102,9 @@ function App() {
 
           <div className="data-box glass">
             <AnimatePresence mode="wait">
-              {loading ? <div className="loader">DECODING DATA...</div> : (
+              {loading ? (
+                <div className="loader">DECRYPTING STATS...</div>
+              ) : (
                 <motion.div key={view + currentLeague} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="scroll-content">
                   {view === 'standings' && (
                     <table className="pro-table clickable">
@@ -118,14 +123,14 @@ function App() {
                   )}
                   {view === 'scorers' && data.map(s => (
                     <div key={s.player?.id} className="pro-list-row">
-                      <div className="p-meta"><img src={s.team?.crest} width="18" alt=""/> <strong>{s.player?.name}</strong></div>
+                      <div className="p-meta"><img src={s.team?.crest} width="20" alt=""/> <strong>{s.player?.name}</strong></div>
                       <span className="neon-pts">{s.goals} Goals</span>
                     </div>
                   ))}
                   {view === 'matches' && data.map(m => (
                     <div key={m.id} className="pro-match-card">
                       <div className="m-teams">{m.homeTeam?.shortName} vs {m.awayTeam?.shortName}</div>
-                      <span className="dim">{new Date(m.utcDate).toLocaleDateString()}</span>
+                      <span className="dim-text">{new Date(m.utcDate).toLocaleDateString()}</span>
                     </div>
                   ))}
                 </motion.div>
@@ -134,6 +139,7 @@ function App() {
           </div>
         </main>
 
+        {/* TACTICAL ANALYST */}
         <aside className="analyst-panel">
           <h2 className="sidebar-label">TACTICAL ANALYST</h2>
           <div className="pitch-container glass">
@@ -149,8 +155,9 @@ function App() {
                 <div className="pitch-marker striker">
                   <div className="marker-glow"></div>
                   <span className="marker-name">{data[0].player.name}</span>
+                  <span className="marker-label">MVP</span>
                 </div>
-              ) : null}
+              ) : <p className="pitch-placeholder">Select teams to analyze</p>}
             </div>
           </div>
 
