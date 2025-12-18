@@ -1,35 +1,140 @@
-:root { --neon: #00ff88; --dark: #05070a; --glass: rgba(15, 23, 42, 0.8); }
+:root { --neon: #00ff88; --dark: #05070a; --glass: rgba(15, 23, 42, 0.85); --text-dim: #64748b; }
 body { background: var(--dark); color: white; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; }
 
-/* ⚡️ LIVE TICKER */
-.ticker-container { background: #000; border-bottom: 2px solid var(--neon); padding: 12px 0; overflow: hidden; }
-.ticker-track { display: flex; animation: scroll-ticker 40s linear infinite; width: max-content; }
-.ticker-item { padding: 0 40px; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 10px; border-right: 1px solid #111; }
-.live-tag { background: red; padding: 2px 6px; border-radius: 4px; font-size: 0.6rem; animation: pulse 1s infinite; }
-@keyframes scroll-ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+/* ⚡️ TICKER ANIMATION */
+.ticker-wrap { background: #000; border-bottom: 2px solid var(--neon); padding: 12px 0; overflow: hidden; }
+.ticker-move { display: flex; width: max-content; animation: ticker-scroll 35s linear infinite; }
+.ticker-item { padding: 0 40px; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 10px; }
+.live-dot { height: 8px; width: 8px; background: red; border-radius: 50%; box-shadow: 0 0 10px red; animation: pulse 1s infinite; }
+
+@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 
 /* 💎 DASHBOARD LAYOUT */
-.pro-app { height: 100vh; display: flex; flex-direction: column; }
-.dashboard-grid { display: grid; grid-template-columns: 260px 1fr; flex-grow: 1; overflow: hidden; }
+.dashboard-grid { display: grid; grid-template-columns: 280px 1fr; height: 100vh; overflow: hidden; }
 
-/* SIDEBAR & NAV */
+/* SIDEBAR & NEON NAV */
 .sidebar { background: #0a0f1e; padding: 40px; border-right: 1px solid rgba(255,255,255,0.05); }
-.brand { font-size: 1.8rem; font-weight: 900; margin-bottom: 60px; }
-.brand span { color: var(--neon); text-shadow: 0 0 15px var(--neon); }
-.league-nav button { display: block; width: 100%; text-align: left; background: none; border: none; color: #64748b; padding: 15px 0; cursor: pointer; font-weight: 700; transition: 0.3s; }
-.league-nav button.active { color: var(--neon); border-left: 3px solid var(--neon); padding-left: 15px; }
+.brand span { color: var(--neon); text-shadow: 0 0 20px var(--neon); }
+.league-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-dim); padding: 15px 0; cursor: pointer; font-weight: 700; transition: 0.4s; }
+.league-btn.active { color: var(--league-color, var(--neon)); border-left: 3px solid var(--league-color); padding-left: 20px; text-shadow: 0 0 10px var(--league-color); }
 
 /* 🏟 PITCH VISUALIZER */
-.pitch-card { height: 400px; position: relative; display: flex; flex-direction: column; overflow: hidden; }
-.pitch-visual { flex-grow: 1; background: url('https://itsgonein.com/pitch-bg.png') center/cover; position: relative; border-radius: 12px; margin-bottom: 15px; }
-.pitch-player { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; }
-.striker { top: 20px; }
-.player-dot { height: 12px; width: 12px; background: var(--neon); border-radius: 50%; margin: 0 auto 5px; box-shadow: 0 0 10px var(--neon); }
-.pitch-player p { font-size: 0.7rem; font-weight: 800; margin: 0; }
-.pitch-player span { font-size: 0.5rem; color: var(--neon); text-transform: uppercase; }
+.pitch-card { height: 420px; display: flex; flex-direction: column; overflow: hidden; }
+.pitch-visual { flex-grow: 1; background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('https://itsgonein.com/pitch-bg.png') center/cover; position: relative; border-radius: 12px; }
+.pitch-player { position: absolute; left: 50%; top: 30px; transform: translateX(-50%); text-align: center; }
+.player-glow { height: 14px; width: 14px; background: var(--neon); border-radius: 50%; margin: 0 auto 5px; box-shadow: 0 0 15px var(--neon); }
+.pitch-player p { font-size: 0.75rem; font-weight: 900; }
 
-/* STATS */
-.scroll-panel { height: calc(100vh - 350px); overflow-y: auto; scrollbar-width: none; }
-.stats-glass { background: var(--glass); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; backdrop-filter: blur(20px); padding: 30px; }
+/* STATS TABLE */
+.stats-glass { background: var(--glass); border-radius: 28px; padding: 30px; backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.05); }
+.scroll-panel { height: calc(100vh - 380px); overflow-y: auto; scrollbar-width: none; }
 .pro-table td { padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
 .neon-pts { color: var(--neon); font-weight: 900; font-size: 1.2rem; }
+
+/* ... Previous root and layout CSS ... */
+
+/* 📊 PREDICTION GAUGE */
+.match-card-elite {
+  background: rgba(255,255,255,0.03);
+  padding: 20px;
+  border-radius: 16px;
+  margin-bottom: 15px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.match-teams {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 800;
+  margin-bottom: 15px;
+}
+
+.vs { color: var(--neon); font-size: 0.7rem; opacity: 0.5; }
+
+.prediction-gauge {
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 99px;
+  position: relative;
+  overflow: hidden;
+}
+
+.gauge-bar {
+  height: 100%;
+  background: var(--neon);
+  box-shadow: 0 0 10px var(--neon);
+  transition: 1s ease-in-out;
+}
+
+.prob-text {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 8px;
+  text-align: center;
+  font-weight: 700;
+}
+
+/* ... Previous Dashboard CSS ... */
+
+.clickable tr { cursor: pointer; transition: 0.2s; }
+.clickable tr:hover { background: rgba(255,255,255,0.05); }
+.clickable tr.selected { background: var(--neon); color: black; }
+.clickable tr.selected .neon-pts { color: black; }
+
+.compare-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--neon);
+  color: black;
+  padding: 10px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.compare-bar button {
+  background: black;
+  color: white;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* ⚔️ H2H CARD */
+.h2h-card { padding: 30px; text-align: center; }
+.h2h-header { display: flex; justify-content: space-around; align-items: center; margin-bottom: 30px; }
+.h2h-header span { font-weight: 900; color: var(--neon); }
+
+.h2h-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.h2h-stat label { font-size: 0.6rem; color: var(--text-dim); letter-spacing: 1px; }
+
+.h2h-gauge {
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.h2h-fill {
+  height: 100%;
+  background: var(--neon);
+  box-shadow: 0 0 15px var(--neon);
+}
+
+.prediction-label { font-size: 0.65rem; color: var(--neon); font-weight: 900; margin-top: 25px; letter-spacing: 2px; }
+.dim-hint { font-size: 0.75rem; color: var(--text-dim); text-align: center; margin-top: 20px; }
