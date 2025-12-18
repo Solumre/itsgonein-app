@@ -1,27 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import { auth, provider } from './firebase';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('TABLE');
   const [activeLeague, setActiveLeague] = useState('PL'); 
   const [loading, setLoading] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
-  const [user, setUser] = useState(null); // Mock user state
+  const [user, setUser] = useState(null);
   const [voted, setVoted] = useState(false);
 
   // Data States
   const [tableData, setTableData] = useState([]);
   const [scorersData, setScorersData] = useState([]);
+  const [fixturesData, setFixturesData] = useState([]);
   
-  // MOCK NEWS DATA (Since API doesn't provide news)
+  // MOCK DATA
   const newsFeed = [
     { id: 1, tag: 'RUMOR', title: 'Mbappé to Liverpool? Agent spotted in London.', time: '2h ago', img: '🔥' },
     { id: 2, tag: 'VIRAL', title: 'Haaland breaks another robot record.', time: '4h ago', img: '🤖' },
     { id: 3, tag: 'DRAMA', title: 'VAR Audio released: Ref made a huge mistake.', time: '6h ago', img: '⚠️' },
   ];
 
-  // MOCK VOTING DATA
-  const voteOptions = [
+   const voteOptions = [
     { id: 1, name: 'Bellingham', team: 'Real Madrid', votes: 45 },
     { id: 2, name: 'Saka', team: 'Arsenal', votes: 30 },
     { id: 3, name: 'Salah', team: 'Liverpool', votes: 25 },
@@ -29,13 +30,23 @@ const App = () => {
 
   const PHP_PROXY_URL = 'https://itsgonein.com/football-proxy.php'; 
 
-  const leagues = [
-    { code: 'PL', name: 'Prem', icon: '🦁' },
+ const leagues = [
+    { code: 'PL', name: 'Premier League', icon: '🦁' },
     { code: 'PD', name: 'La Liga', icon: '🇪🇸' },
     { code: 'BL1', name: 'Bundesliga', icon: '🇩🇪' },
     { code: 'SA', name: 'Serie A', icon: '🇮🇹' },
     { code: 'FL1', name: 'Ligue 1', icon: '🇫🇷' },
+    { code: 'DED', name: 'Eredivisie', icon: '🇳🇱' },
+    { code: 'BSA', name: 'Brasileirão', icon: '🇧🇷' },
+    { code: 'PPL', name: 'Primeira Liga', icon: '🇵🇹' }
   ];
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     fetchData(activeTab, activeLeague);
@@ -44,10 +55,8 @@ const App = () => {
   const fetchData = async (tab, league) => {
     setLoading(true);
     try {
-      // Fetch Standings
-      const resTable = await fetch(`${PHP_PROXY_URL}?league=${league}&type=standings`);
-      const dataTable = await resTable.json();
-      
+       const resTable = await fetch(`${PHP_PROXY_URL}?league=${league}&type=standings`);
+       const dataTable = await resTable.json();
       if (dataTable.standings) {
         setTableData(dataTable.standings[0].table.map(t => ({
           ...t,
@@ -55,49 +64,72 @@ const App = () => {
         })));
       }
 
-      // Fetch Scorers for "Top Stats"
-      const resScorers = await fetch(`${PHP_PROXY_URL}?league=${league}&type=scorers`);
-      const dataScorers = await resScorers.json();
-      if (dataScorers.scorers) {
-        setScorersData(dataScorers.scorers.slice(0, 3));
+      if (tab === 'TABLE' || tab === 'SCORERS') {
+        const resScorers = await fetch(`${PHP_PROXY_URL}?league=${league}&type=scorers`);
+        const dataScorers = await resScorers.json();
+        if (dataScorers.scorers) {
+          setScorersData(dataScorers.scorers);
+        }
       }
 
+      if (tab === 'FIXTURES') {
+        const resFixtures = await fetch(`${PHP_PROXY_URL}?league=${league}&type=matches`);
+        const dataFixtures = await resFixtures.json();
+        if (dataFixtures.matches) {
+           const upcoming = dataFixtures.matches
+            .filter(m => m.status !== 'FINISHED')
+            .slice(0, 15)
+            .map(m => ({
+              id: m.id,
+              date: new Date(m.utcDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+              time: new Date(m.utcDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+              home: m.homeTeam.shortName || m.homeTeam.name,
+              away: m.awayTeam.shortName || m.awayTeam.name,
+              homeCrest: m.homeTeam.crest,
+              awayCrest: m.awayTeam.crest
+            }));
+          setFixturesData(upcoming);
+        }
+      }
     } catch (err) { console.error(err); }
     setLoading(false);
   };
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setUser({ username: 'FootyFan_99', level: 5 });
-    setShowLogin(false);
+  const handleGoogleLogin = async () => {
+    try { await signInWithPopup(auth, provider); } 
+    catch (error) { console.error("Login Error:", error); }
   };
+
+  const handleLogout = async () => { await signOut(auth); };
 
   return (
     <div className="app-container">
-      {/* LOGIN OVERLAY */}
-      {showLogin && (
-        <div className="modal-overlay">
-          <div className="login-box">
-            <h2>JOIN THE SQUAD</h2>
-            <p>Vote for MVP, Comment, and Rank Up.</p>
-            <form onSubmit={handleLogin}>
-              <input type="text" placeholder="Username" />
-              <input type="password" placeholder="Password" />
-              <button type="submit" className="login-btn-action">ENTER GAME</button>
-            </form>
-            <button className="close-btn" onClick={() => setShowLogin(false)}>✕</button>
-          </div>
+      {/* 1. TICKER RESTORED HERE */}
+      <div className="top-ticker">
+        <div className="live-badge">LIVE</div>
+        <div className="ticker-wrapper">
+           <div className="ticker-content">
+              <span>Man City <b className="score">3-1</b> Arsenal <span className="min">88'</span></span>
+              <span>Real Madrid <b className="score">2-0</b> Barcelona <span className="min">HT</span></span>
+              <span>Bayern <b className="score">0-0</b> Dortmund <span className="min">12'</span></span>
+              <span>PSG <b className="score">4-1</b> Lyon <span className="min">FT</span></span>
+              <span>Ajax <b className="score">1-0</b> Feyenoord <span className="min">LIVE</span></span>
+              <span>Flamengo <b className="score">2-2</b> Santos <span className="min">90+2'</span></span>
+              {/* Duplicate for infinite loop */}
+              <span>Man City <b className="score">3-1</b> Arsenal <span className="min">88'</span></span>
+              <span>Real Madrid <b className="score">2-0</b> Barcelona <span className="min">HT</span></span>
+              <span>Bayern <b className="score">0-0</b> Dortmund <span className="min">12'</span></span>
+              <span>PSG <b className="score">4-1</b> Lyon <span className="min">FT</span></span>
+           </div>
         </div>
-      )}
+      </div>
 
       <div className="dashboard-grid">
-        
-        {/* COL 1: NAVIGATION (Slimmer) */}
+        {/* COL 1: SIDEBAR */}
         <nav className="side-nav">
-          <div className="brand">IG<span className="accent">I.</span></div>
-          
+          <div className="brand">ITS<span className="accent">GONE</span>IN.</div>
           <div className="nav-group">
-            <label>LEAGUES</label>
+            <label>ELITE CIRCUITS</label>
             {leagues.map(l => (
               <div 
                 key={l.code} 
@@ -109,109 +141,148 @@ const App = () => {
               </div>
             ))}
           </div>
-
-          <div className="nav-group">
-            <label>COMMUNITY</label>
-            <div className="nav-item">🔥 Trending</div>
-            <div className="nav-item">💬 Forums</div>
-            <div className="nav-item">👕 Shop</div>
+           <div className="nav-group">
+             <label>COMMUNITY</label>
+             <div className="nav-item"><span className="nav-icon">🔥</span> Trending</div>
+             <div className="nav-item"><span className="nav-icon">💬</span> Forums</div>
           </div>
         </nav>
 
-        {/* COL 2: MAIN FEED (The Table + Live) */}
+        {/* COL 2: MAIN FEED */}
         <main className="main-feed">
           <header className="feed-header">
-            <h1>{leagues.find(l=>l.code===activeLeague)?.name} Season</h1>
+            <div className="header-title">
+              <h1>{leagues.find(l=>l.code===activeLeague)?.name}</h1>
+              <span>Season 2024/25</span>
+            </div>
             <div className="tabs">
-              <button className={activeTab === 'TABLE' ? 'active' : ''} onClick={()=>setActiveTab('TABLE')}>Standings</button>
-              <button className={activeTab === 'SCORERS' ? 'active' : ''} onClick={()=>setActiveTab('SCORERS')}>Stats</button>
+              <button className={`tab-btn ${activeTab === 'TABLE' ? 'active' : ''}`} onClick={()=>setActiveTab('TABLE')}>STANDINGS</button>
+              <button className={`tab-btn ${activeTab === 'SCORERS' ? 'active' : ''}`} onClick={()=>setActiveTab('SCORERS')}>TOP SCORERS</button>
+              <button className={`tab-btn ${activeTab === 'FIXTURES' ? 'active' : ''}`} onClick={()=>setActiveTab('FIXTURES')}>FIXTURES</button>
             </div>
           </header>
 
-          {/* DYNAMIC CARD: Top Scorer Spotlight */}
-          {scorersData.length > 0 && (
-            <div className="spotlight-card">
-              <div className="spotlight-info">
-                <span className="badge">GOLDEN BOOT RACE</span>
-                <h3>{scorersData[0].player.name}</h3>
-                <p>{scorersData[0].team.shortName}</p>
+          <div className="feed-content">
+            {activeTab !== 'FIXTURES' && scorersData.length > 0 && (
+              <div className="spotlight-card">
+                <div className="spotlight-info">
+                  <span className="badge">GOLDEN BOOT RACE</span>
+                  <h3>{scorersData[0].player.name}</h3>
+                  <p>{scorersData[0].team.shortName}</p>
+                </div>
+                <div className="spotlight-stat">
+                  <span className="big-num">{scorersData[0].goals}</span>
+                  <span className="label">GOALS</span>
+                </div>
               </div>
-              <div className="spotlight-stat">
-                <span className="big-num">{scorersData[0].goals}</span>
-                <span className="label">GOALS</span>
-              </div>
-            </div>
-          )}
-
-          <div className="data-container">
-            {loading ? <div className="loader">Loading Data...</div> : (
-              <table className="modern-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Club</th>
-                    <th>MP</th>
-                    <th>W/D/L</th>
-                    <th>Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map(t => (
-                    <tr key={t.team.id}>
-                      <td className="rank">{t.position}</td>
-                      <td className="team-flex">
-                        <img src={t.team.crest} alt="" />
-                        <span>{t.shortName}</span>
-                      </td>
-                      <td>{t.playedGames}</td>
-                      <td className="form-mini">
-                         <span className="w">{t.won}</span>/
-                         <span className="d">{t.draw}</span>/
-                         <span className="l">{t.lost}</span>
-                      </td>
-                      <td className="pts">{t.points}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             )}
+
+            <div className="data-container">
+              {loading && <div style={{padding:40, textAlign:'center', color:'#666'}}>Scouting Data...</div>}
+              
+              {!loading && activeTab === 'TABLE' && (
+                <table className="modern-table">
+                  <thead>
+                    <tr>
+                      <th width="50">#</th>
+                      <th>CLUB</th>
+                      <th>MP</th>
+                      <th>W / D / L</th>
+                      <th className="text-right">PTS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableData.map(t => (
+                      <tr key={t.team.id}>
+                        <td className="rank">{t.position}</td>
+                        <td>
+                          <div className="team-flex">
+                            <img src={t.team.crest} alt="" />
+                            <span>{t.shortName}</span>
+                          </div>
+                        </td>
+                        <td style={{color:'#666'}}>{t.playedGames}</td>
+                        <td className="form-mini">
+                          <span className="w">{t.won}</span> / <span style={{color:'#666'}}>{t.draw}</span> / <span className="l">{t.lost}</span>
+                        </td>
+                        <td className="pts">{t.points}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {!loading && activeTab === 'SCORERS' && (
+                <div className="scorers-list">
+                  {scorersData.map((s, i) => (
+                    <div key={i} className="list-row">
+                      <div className="rank-badge">{i + 1}</div>
+                      <div className="list-info">
+                        <span className="list-name">{s.player.name}</span>
+                        <span className="list-sub">{s.team.shortName}</span>
+                      </div>
+                      <div className="list-stat">
+                        <span className="stat-val">{s.goals}</span>
+                        <span className="stat-label">GOALS</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {!loading && activeTab === 'FIXTURES' && (
+                <div className="fixtures-list">
+                  {fixturesData.map((f) => (
+                    <div key={f.id} className="fixture-row">
+                      <div className="fixture-date">
+                        <span className="date">{f.date}</span>
+                        <span className="time">{f.time}</span>
+                      </div>
+                      <div className="fixture-matchup">
+                        <div className="team home">
+                          <span>{f.home}</span>
+                          {f.homeCrest && <img src={f.homeCrest} alt="" />}
+                        </div>
+                        <div className="vs-badge">VS</div>
+                        <div className="team away">
+                          {f.awayCrest && <img src={f.awayCrest} alt="" />}
+                          <span>{f.away}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </main>
 
-        {/* COL 3: SOCIAL & HYPE (New Engagement Section) */}
-        <aside className="hype-zone">
-          
-          {/* USER PROFILE / LOGIN */}
+        {/* COL 3: SOCIAL HYPE */}
+         <aside className="hype-zone">
           <div className="user-card">
             {user ? (
               <div className="logged-in">
-                <div className="avatar">😎</div>
+                <img src={user.photoURL} className="avatar-img" alt="User" />
                 <div className="user-info">
-                  <h4>{user.username}</h4>
-                  <span className="level">Lvl {user.level} Ultras</span>
+                  <h4>{user.displayName}</h4>
+                  <button onClick={handleLogout} className="logout-btn">Sign Out</button>
                 </div>
               </div>
             ) : (
               <div className="login-prompt">
-                <p>Join the debate.</p>
-                <button onClick={() => setShowLogin(true)}>LOGIN / SIGN UP</button>
+                <p>Join the debate & vote.</p>
+                <button onClick={handleGoogleLogin} className="google-btn">SIGN IN WITH GOOGLE</button>
               </div>
             )}
           </div>
-
-          {/* VOTING SECTION */}
-          <div className="widget-box vote-box">
+           <div className="widget-box vote-box">
             <div className="widget-header">
               <h3>PLAYER OF THE WEEK</h3>
-              <span className="live-dot">● VOTING LIVE</span>
+              <span className="live-dot">VOTING LIVE</span>
             </div>
             <div className="vote-list">
               {voteOptions.map(v => (
-                <div 
-                  key={v.id} 
-                  className={`vote-item ${voted ? 'disabled' : ''}`}
-                  onClick={() => setVoted(true)}
-                >
+                <div key={v.id} className={`vote-item ${voted ? 'disabled' : ''}`} onClick={() => setVoted(true)}>
                   <div className="vote-info">
                     <span>{v.name}</span>
                     <small>{v.team}</small>
@@ -222,9 +293,7 @@ const App = () => {
               ))}
             </div>
           </div>
-
-          {/* NEWS FEED */}
-          <div className="widget-box news-box">
+           <div className="widget-box news-box">
             <h3>LATEST DROPS</h3>
             {newsFeed.map(news => (
               <div key={news.id} className="news-item">
@@ -237,25 +306,7 @@ const App = () => {
               </div>
             ))}
           </div>
-
-          {/* STATS MARKET (Mocked for Visual Appeal) */}
-          <div className="widget-box stats-box">
-            <h3>MARKET MOVERS 📈</h3>
-            <div className="market-row">
-              <span>💎 Bellingham</span>
-              <span className="price">€180M</span>
-            </div>
-            <div className="market-row">
-              <span>💎 Haaland</span>
-              <span className="price">€200M</span>
-            </div>
-            <div className="market-row down">
-              <span>🔻 Antony</span>
-              <span className="price">€25M</span>
-            </div>
-          </div>
-
-        </aside>
+         </aside>
       </div>
     </div>
   );
