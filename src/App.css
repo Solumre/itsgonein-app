@@ -172,3 +172,31 @@ td { border-bottom: 1px solid rgba(255,255,255,0.05); }
 .match-teams { display: flex; justify-content: space-between; align-items: center; margin-top: 5px;}
 .team-home, .team-away { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .mini-crest { width: 20px; }
+
+/* 1. Neon Pulse for the Logo Dot */
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 5px var(--accent-glow); transform: scale(1); }
+  50% { box-shadow: 0 0 20px var(--accent), 0 0 30px var(--accent-glow); transform: scale(1.2); }
+  100% { box-shadow: 0 0 5px var(--accent-glow); transform: scale(1); }
+}
+
+.logo-dot {
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+/* 2. Hover effect for News Cards */
+.news-card {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+.news-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.2);
+  transform: translateY(-10px) scale(1.02);
+}
+
+/* 3. Prediction Tag Glow */
+.prediction-tag {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}

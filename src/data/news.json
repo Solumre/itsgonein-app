@@ -1,18 +1,29 @@
 [
   {
     "id": 1,
+    "category": "Arsenal",
+    "date": "DEC 18, 2025",
     "title": "Big Clash at the Etihad",
-    "date": "Dec 18, 2025",
-    "image": "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=600&q=80",
     "summary": "Man City look unstoppable, but Arsenal's defense is the best in the league. I think this ends in a draw.",
-    "prediction": "2-2 Draw"
+    "image": "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=800",
+    "prediction": "2-2 DRAW"
   },
   {
     "id": 2,
+    "category": "Liverpool",
+    "date": "DEC 17, 2025",
     "title": "Who stops Salah?",
-    "date": "Dec 17, 2025",
-    "image": "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=600&q=80",
     "summary": "Liverpool's attack is on fire. If they win this weekend, they go top of the table.",
-    "prediction": "3-1 Liverpool"
+    "image": "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&q=80&w=800",
+    "prediction": "3-1 LIVERPOOL"
+  },
+  {
+    "id": 3,
+    "category": "Arsenal",
+    "date": "DEC 16, 2025",
+    "title": "Saka's Masterclass",
+    "summary": "Saka continues to carry the Gunners. His stats this season are proving he is the best winger in the PL.",
+    "image": "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&q=80&w=800",
+    "prediction": "1-0 ARSENAL"
   }
 ]
