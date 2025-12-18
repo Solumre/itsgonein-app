@@ -19,24 +19,26 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [compareList, setCompareList] = useState([]);
 
-  // 1. Fetch Ticker Data
+  // Fetch Ticker Data (Matches)
   useEffect(() => {
     fetch(`https://itsgonein.com/football-proxy.php?league=PL&type=matches`)
       .then(res => res.json())
       .then(json => setTickerData(json.matches?.slice(0, 15) || []));
   }, []);
 
-  // 2. Fetch Main Content
+  // Fetch Main Content
   useEffect(() => {
     const fetchEliteStats = async () => {
       try {
         setLoading(true);
         const res = await fetch(`https://itsgonein.com/football-proxy.php?league=${currentLeague}&type=${view}`);
         const json = await res.json();
+        
         let normalizedData = [];
         if (view === 'standings') normalizedData = json.standings?.[0]?.table || [];
         else if (view === 'scorers') normalizedData = json.scorers || [];
         else if (view === 'matches') normalizedData = json.matches || [];
+        
         setData(normalizedData);
       } catch (e) {
         setData([]);
@@ -57,7 +59,7 @@ function App() {
 
   return (
     <div className="pro-app">
-      {/* ⚡️ THE LIVE TICKER */}
+      {/* ⚡️ LIVE NEWS TICKER */}
       <div className="ticker-wrap">
         <div className="ticker-move">
           {tickerData.map((m, i) => (
@@ -88,6 +90,7 @@ function App() {
           </nav>
         </aside>
 
+        {/* MAIN CONTENT HUB */}
         <main className="main-hub">
           <header className="hub-header">
             <div className="tabs">
@@ -102,14 +105,18 @@ function App() {
           <div className="hub-content">
             <section className="stats-glass">
               <AnimatePresence mode="wait">
-                {loading ? <div className="loader">SYNCING...</div> : (
+                {loading ? <div className="loader">SYNCING ELITE DATA...</div> : (
                   <motion.div key={view + currentLeague} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="scroll-panel">
                     {view === 'standings' && (
                       <table className="pro-table clickable">
                         <thead><tr><th>#</th><th>TEAM</th><th>GD</th><th>PTS</th></tr></thead>
                         <tbody>
                           {data.map(t => (
-                            <tr key={t.team?.id} onClick={() => toggleCompare(t)} className={compareList.find(c => c.team.id === t.team.id) ? 'selected' : ''}>
+                            <tr 
+                              key={t.team?.id} 
+                              onClick={() => toggleCompare(t)}
+                              className={compareList.find(c => c.team.id === t.team.id) ? 'selected' : ''}
+                            >
                               <td>{t.position}</td>
                               <td className="t-cell"><img src={t.team?.crest} width="22" /> {t.team?.shortName}</td>
                               <td>{t.goalDifference}</td>
@@ -119,27 +126,41 @@ function App() {
                         </tbody>
                       </table>
                     )}
-                    {/* ... Scorers and Matches display ... */}
+                    {view === 'scorers' && data.map(s => (
+                      <div key={s.player?.id} className="list-row">
+                        <div className="p-info"><strong>{s.player?.name}</strong><span>{s.team?.shortName}</span></div>
+                        <span className="neon-pts">{s.goals} G</span>
+                      </div>
+                    ))}
+                    {view === 'matches' && data.slice(0, 10).map(m => (
+                      <div key={m.id} className="list-row match-row">
+                        <span>{m.homeTeam.shortName} vs {m.awayTeam.shortName}</span>
+                        <span className="dim">{new Date(m.utcDate).toLocaleDateString()}</span>
+                      </div>
+                    ))}
                   </motion.div>
                 )}
               </AnimatePresence>
             </section>
 
-            {/* 🎯 TACTICAL ANALYST & PITCH */}
+            {/* 🎯 TACTICAL ANALYST & H2H */}
             <section className="scout-column">
               <h2 className="glow-label">TACTICAL ANALYST</h2>
               {compareList.length === 2 ? (
                 <div className="h2h-card glass">
-                  <div className="h2h-header"><img src={compareList[0].team.crest} width="30"/> VS <img src={compareList[1].team.crest} width="30"/></div>
+                  <div className="h2h-header"><img src={compareList[0].team.crest} width="40"/> VS <img src={compareList[1].team.crest} width="40"/></div>
                   <div className="h2h-stat"><span>{compareList[0].points}</span><label>PTS</label><span>{compareList[1].points}</span></div>
+                  <div className="h2h-stat"><span>{compareList[0].goalDifference}</span><label>GD</label><span>{compareList[1].goalDifference}</span></div>
+                  <button className="clear-btn" onClick={() => setCompareList([])}>RESET</button>
                 </div>
               ) : (
                 <div className="pitch-card glass">
-                   <div className="pitch-visual">
-                      {data[0] && view === 'scorers' && (
-                        <div className="pitch-player striker"><div className="player-glow"></div><p>{data[0].player.name}</p></div>
-                      )}
-                   </div>
+                  <div className="pitch-visual">
+                    {view === 'scorers' && data[0] && (
+                      <div className="pitch-player striker"><div className="player-glow"></div><p>{data[0].player.name}</p></div>
+                    )}
+                  </div>
+                  <p className="dim-hint">Click two teams in the table to compare H2H.</p>
                 </div>
               )}
             </section>
