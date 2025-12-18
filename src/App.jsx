@@ -11,7 +11,7 @@ function App() {
   const [filter, setFilter] = useState('All') // Filter state
 
   useEffect(() => {
-    const proxyBase = '/football-proxy.php?type=';
+    const proxyBase = 'https://itsgonein.com/football-proxy.php?type=';
     Promise.all([
       fetch(proxyBase + 'standings'),
       fetch(proxyBase + 'scorers'),
