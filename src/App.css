@@ -4,11 +4,11 @@ body { background: var(--dark); color: white; font-family: 'Inter', sans-serif; 
 /* ⚡️ LIVE TICKER */
 .ticker-panel { background: #000; border-bottom: 2px solid var(--neon); padding: 12px 0; overflow: hidden; }
 .ticker-stream { display: flex; width: max-content; animation: ticker-run 40s linear infinite; }
-.ticker-match { padding: 0 40px; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 10px; border-right: 1px solid #111; }
+.ticker-match { padding: 0 40px; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 10px; border-right: 1px solid #111; white-space: nowrap; }
 .live-dot { height: 8px; width: 8px; background: red; border-radius: 50%; box-shadow: 0 0 10px red; }
 @keyframes ticker-run { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-/* 💎 THE 3-COLUMN GRID */
+/* 💎 LOCKED DASHBOARD GRID */
 .pro-grid { display: grid; grid-template-columns: 260px 1fr 380px; height: calc(100vh - 50px); overflow: hidden; }
 
 /* SIDEBAR */
@@ -17,25 +17,27 @@ body { background: var(--dark); color: white; font-family: 'Inter', sans-serif; 
 .league-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--text-sub); padding: 15px 0; cursor: pointer; font-weight: 700; }
 .league-btn.active { color: var(--league-glow, var(--neon)); border-left: 3px solid var(--league-glow); padding-left: 15px; }
 
-/* MAIN CONTENT */
+/* MAIN CONTENT (Middle Column) */
 .match-center { padding: 30px; overflow: hidden; display: flex; flex-direction: column; }
 .data-display { flex-grow: 1; border-radius: 24px; padding: 25px; overflow: hidden; }
-.scroll-content { height: calc(100vh - 280px); overflow-y: auto; scrollbar-width: none; }
+.scroll-content { height: calc(100vh - 300px); overflow-y: auto; scrollbar-width: none; }
 
-/* 🏟 TACTICAL ANALYST */
-.analyst-panel { padding: 30px; background: rgba(0,0,0,0.2); border-left: 1px solid rgba(255,255,255,0.05); overflow-y: auto; }
+/* 🏟 TACTICAL ANALYST (Right Column) */
+.analyst-panel { padding: 30px; background: rgba(0,0,0,0.2); border-left: 1px solid rgba(255,255,255,0.05); }
 .pitch-box { height: 350px; margin: 20px 0; position: relative; }
 .pitch-canvas { height: 100%; background: #111 url('https://itsgonein.com/pitch-bg.png') center/cover; position: relative; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
 .pitch-marker { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); text-align: center; }
+.glow-dot { height: 12px; width: 12px; background: var(--neon); border-radius: 50%; box-shadow: 0 0 15px var(--neon); margin: 0 auto 5px; }
 
-/* CLEAN LISTS */
+/* CLEAN LISTS & COMPONENTS */
 .elite-table { width: 100%; border-collapse: collapse; }
 .elite-table td { padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
 .team-cell { display: flex; align-items: center; gap: 12px; font-weight: 700; }
 .stat-row-pro { display: flex; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
-.p-details { display: flex; align-items: center; gap: 10px; }
-.p-details span { color: var(--text-sub); font-size: 0.75rem; }
-.fixture-row-pro { padding: 20px; background: rgba(255,255,255,0.02); border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+ .fixture-row-pro { padding: 20px; background: rgba(255,255,255,0.02); border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
 .f-main { display: flex; align-items: center; gap: 20px; font-weight: 800; }
 .vs { color: var(--neon); font-size: 0.7rem; }
 .pts-neon { color: var(--neon); font-weight: 900; }
+.marked { background: rgba(0, 255, 136, 0.1) !important; color: var(--neon); }
+.glass { background: var(--glass); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(20px); }
+.reset-btn { background: var(--neon); border: none; padding: 5px 15px; border-radius: 4px; font-weight: 800; cursor: pointer; margin-top: 10px; } 
