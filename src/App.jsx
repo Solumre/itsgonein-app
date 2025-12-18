@@ -16,12 +16,12 @@ function App() {
         const response = await fetch(`https://itsgonein.com/football-proxy.php?type=${view}`);
         const result = await response.json();
         
-        // Correctly mapping based on specific API nested structures
+        // Accurate data mapping for each API endpoint
         if (view === 'standings') setData(result.standings?.[0]?.table || []);
         if (view === 'scorers') setData(result.scorers || []);
         if (view === 'matches') setData(result.matches || []);
       } catch (error) {
-        console.error("Fetch failed:", error);
+        console.error("Data Load Error:", error);
         setData([]);
       } finally {
         setLoading(false);
@@ -32,100 +32,83 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header">
-        <h1 className="logo">ITS<span>GONE</span>IN<span>.</span></h1>
-        <div className="filter-bar">
+      <header className="main-header">
+        <h1 className="brand">ITS<span>GONE</span>IN<span>.</span></h1>
+        <nav className="filter-nav">
           {['All', 'Arsenal', 'Liverpool', 'Man City'].map(f => (
-            <button 
-              key={f} 
-              className={`filter-btn ${activeFilter === f ? 'active' : ''}`} 
-              onClick={() => setActiveFilter(f)}
-            >
-              {f}
-            </button>
+            <button key={f} className={activeFilter === f ? 'active' : ''} onClick={() => setActiveFilter(f)}>{f}</button>
           ))}
-        </div>
+        </nav>
       </header>
 
-       <section className="news-hero">
-        <h2 className="section-label">LATEST ANALYSIS</h2>
-        <div className="news-grid">
-          {newsData.filter(n => activeFilter === 'All' || n.tag === activeFilter).map(news => (
-            <motion.div layout key={news.id} className="news-card">
-              <div className="card-img-wrap">
-                <img src={news.image} alt="" />
-                <span className="result-badge">{news.result}</span>
-              </div>
-              <div className="news-content">
-                <span className="card-date">{news.date}</span>
-                <h3>{news.title}</h3>
-                <p>{news.excerpt}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-       <section className="stats-dashboard">
-        <div className="dashboard-header">
-          <h2 className="section-label">MATCH CENTER</h2>
-          <div className="tab-group">
-            <button className={view === 'standings' ? 'active' : ''} onClick={() => setView('standings')}>Table</button>
-            <button className={view === 'scorers' ? 'active' : ''} onClick={() => setView('scorers')}>Scorers</button>
-            <button className={view === 'matches' ? 'active' : ''} onClick={() => setView('matches')}>Fixtures</button>
+      <main className="content-grid">
+        <section className="news-section">
+          <h2 className="label">LATEST ANALYSIS</h2>
+          <div className="cards-wrapper">
+            {newsData.filter(n => activeFilter === 'All' || n.tag === activeFilter).map(news => (
+              <motion.article layout key={news.id} className="glass-card">
+                <div className="img-box">
+                  <img src={news.image} alt={news.title} />
+                  <span className="badge">{news.result}</span>
+                </div>
+                <div className="card-body">
+                  <span className="date">{news.date}</span>
+                  <h3>{news.title}</h3>
+                  <p>{news.excerpt}</p>
+                </div>
+              </motion.article>
+            ))}
           </div>
-        </div>
+        </section>
 
-        <div className="data-content">
-          <AnimatePresence mode="wait">
-            {loading ? (
-              <motion.div initial={{opacity:0}} animate={{opacity:1}} className="loader">Updating Live Stats...</motion.div>
-            ) : (
-              <motion.div 
-                key={view}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="scroll-container"
-              >
-                {view === 'standings' && (
-                  <table className="modern-table">
-                    <thead><tr><th>POS</th><th>TEAM</th><th>P</th><th>GD</th><th>PTS</th></tr></thead>
-                    <tbody>
-                      {data.map(t => (
-                        <tr key={t.team.id}>
-                          <td>{t.position}</td>
-                          <td className="t-name"><img src={t.team.crest} width="20" alt=""/> {t.team.shortName}</td>
-                          <td>{t.playedGames}</td><td>{t.goalDifference}</td><td className="pts">{t.points}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-                {view === 'scorers' && (
-                  <div className="list-view">
-                    {data.map(s => (
-                      <div key={s.player.id} className="list-item">
-                        <span><strong>{s.player.name}</strong> ({s.team.shortName})</span>
-                        <span className="pts">{s.goals} Goals</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {view === 'matches' && (
-                  <div className="list-view">
-                    {data.slice(0, 15).map(m => (
-                      <div key={m.id} className="list-item">
-                        <span>{m.homeTeam.shortName} vs {m.awayTeam.shortName}</span>
-                        <span className="dim">{new Date(m.utcDate).toLocaleDateString()}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </section>
+        <section className="center-section">
+          <div className="center-header">
+            <h2 className="label">MATCH CENTER</h2>
+            <div className="tabs">
+              <button className={view === 'standings' ? 'on' : ''} onClick={() => setView('standings')}>Table</button>
+              <button className={view === 'scorers' ? 'on' : ''} onClick={() => setView('scorers')}>Scorers</button>
+              <button className={view === 'matches' ? 'on' : ''} onClick={() => setView('matches')}>Fixtures</button>
+            </div>
+          </div>
+
+          <div className="data-panel glass-card">
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <motion.div initial={{opacity:0}} animate={{opacity:1}} className="loader">SYNCING DATA...</motion.div>
+              ) : (
+                <motion.div key={view} initial={{opacity:0}} animate={{opacity:1}} className="scroll-box">
+                  {view === 'standings' && (
+                    <table className="data-table">
+                      <thead><tr><th>#</th><th>TEAM</th><th>P</th><th>GD</th><th>PTS</th></tr></thead>
+                      <tbody>
+                        {data.map(t => (
+                          <tr key={t.team.id}>
+                            <td>{t.position}</td>
+                            <td className="t-info"><img src={t.team.crest} width="18"/> {t.team.shortName}</td>
+                            <td>{t.playedGames}</td><td>{t.goalDifference}</td><td className="bold-green">{t.points}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {view === 'scorers' && data.map(s => (
+                    <div key={s.player.id} className="row-item">
+                      <span><strong>{s.player.name}</strong> ({s.team.shortName})</span>
+                      <span className="bold-green">{s.goals} Goals</span>
+                    </div>
+                  ))}
+                  {view === 'matches' && data.slice(0, 12).map(m => (
+                    <div key={m.id} className="row-item">
+                      <span>{m.homeTeam.shortName} vs {m.awayTeam.shortName}</span>
+                      <span className="muted">{new Date(m.utcDate).toLocaleDateString()}</span>
+                    </div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
