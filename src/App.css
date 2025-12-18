@@ -1,44 +1,22 @@
 :root { --neon: #00ff88; --dark: #05070a; --glass: rgba(15, 23, 42, 0.9); }
 body { background: var(--dark); color: white; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; }
 
-/* Dashboard Grid Fix */
-.pro-grid { display: grid; grid-template-columns: 260px 1fr 380px; height: calc(100vh - 50px); overflow: hidden; }
-
-/* Sidebar */
-.elite-sidebar { background: #0a0f1e; padding: 40px; border-right: 1px solid rgba(255,255,255,0.05); }
-.brand span { color: var(--neon); text-shadow: 0 0 15px var(--neon); }
-.league-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #64748b; padding: 15px 0; cursor: pointer; font-weight: 700; }
-.league-btn.active { color: var(--league-glow, var(--neon)); border-left: 3px solid var(--league-glow); padding-left: 15px; }
-
-/* Main Content: SCROLL FIX FOR ALL 20 TEAMS */
-.match-center { padding: 30px; overflow: hidden; display: flex; flex-direction: column; }
-.data-display { flex-grow: 1; border-radius: 24px; padding: 25px; overflow: hidden; }
-.scroll-content { height: calc(100vh - 280px); overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--neon) transparent; }
-
-/* Tactical Analyst Pitch Fix */
-.analyst-panel { padding: 30px; background: rgba(0,0,0,0.2); border-left: 1px solid rgba(255,255,255,0.05); }
-.pitch-box { height: 350px; margin: 20px 0; position: relative; }
-.pitch-canvas { height: 100%; background: #111 url('https://itsgonein.com/pitch-bg.png') center/cover; position: relative; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); }
-.pitch-marker { position: absolute; text-align: center; width: 80px; }
-.pos-0 { left: 20%; top: 30%; }
-.pos-1 { right: 20%; top: 30%; }
-.striker { left: 50%; top: 20%; transform: translateX(-50%); }
-.glow-dot { height: 12px; width: 12px; background: var(--neon); border-radius: 50%; box-shadow: 0 0 15px var(--neon); margin: 0 auto 5px; }
-
-/* Table and Row Styling */
-.elite-table { width: 100%; border-collapse: collapse; }
-.elite-table td { padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
-.team-cell { display: flex; align-items: center; gap: 12px; font-weight: 700; }
- .pts-neon { color: var(--neon); font-weight: 900; }
-.marked { background: rgba(0, 255, 136, 0.1) !important; color: var(--neon); }
-
-/* Ticker */
+/* ⚡️ LIVE TICKER */
 .ticker-panel { background: #000; border-bottom: 2px solid var(--neon); padding: 12px 0; overflow: hidden; }
-.ticker-stream { display: flex; width: max-content; animation: ticker-run 40s linear infinite; }
-.ticker-match { padding: 0 40px; font-weight: 800; font-size: 0.8rem; border-right: 1px solid #111; }
-@keyframes ticker-run { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.ticker-stream { display: flex; width: max-content; animation: ticker-scroll 35s linear infinite; }
+.ticker-item { padding: 0 40px; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 10px; border-right: 1px solid #111; }
+.live-dot { height: 8px; width: 8px; background: red; border-radius: 50%; box-shadow: 0 0 10px red; }
+@keyframes ticker-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
 
-/* --- TACTICAL PITCH STYLING --- */
+/* 💎 DASHBOARD GRID */
+.pro-grid { display: grid; grid-template-columns: 280px 1fr 380px; height: calc(100vh - 50px); overflow: hidden; }
+
+/* MAIN CONTENT (SCROLL FIX FOR 20 TEAMS) */
+.match-center { padding: 30px; overflow: hidden; display: flex; flex-direction: column; }
+.data-box { flex-grow: 1; border-radius: 28px; padding: 25px; overflow: hidden; }
+.scroll-content { height: calc(100vh - 300px); overflow-y: auto; scrollbar-width: none; }
+
+/* --- INTEGRATED TACTICAL PITCH STYLING --- */
 .football-pitch {
   height: 300px;
   background: linear-gradient(to bottom, #1a2e1a 0%, #0a0f0a 100%);
@@ -54,21 +32,24 @@ body { background: var(--dark); color: white; font-family: 'Inter', sans-serif; 
 
 .pitch-marker { position: absolute; text-align: center; width: 100px; z-index: 10; }
 .pitch-marker.striker { top: 20%; left: 50%; transform: translateX(-50%); }
-.pitch-marker.team-pos-0 { top: 40%; left: 20%; }
-.pitch-marker.team-pos-1 { top: 40%; right: 20%; }
+.pitch-marker.team-pos-0 { top: 40%; left: 10%; }
+.pitch-marker.team-pos-1 { top: 40%; right: 10%; }
 
 .marker-glow { 
   width: 12px; height: 12px; background: var(--neon); 
   border-radius: 50%; margin: 0 auto 8px; 
   box-shadow: 0 0 15px var(--neon); 
 }
+.marker-name { font-size: 0.7rem; font-weight: 800; display: block; }
 
-/* --- COMPARISON CARD STYLING --- */
-.vs-badge { background: var(--neon); color: #000; font-weight: 900; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+/* --- INTEGRATED COMPARISON CARD STYLING --- */
+.h2h-comparison-card { padding: 20px; margin-top: 20px; }
+.vs-badge { background: var(--neon); color: #000; font-weight: 900; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; margin: 0 10px; }
+.comp-row.teams { display: flex; justify-content: center; align-items: center; font-weight: 900; margin-bottom: 20px; }
 .stat-group label { display: block; text-align: center; font-size: 0.6rem; letter-spacing: 2px; color: #64748b; margin: 15px 0 5px; }
 .bar-wrapper { display: flex; align-items: center; gap: 15px; }
 .bar { flex-grow: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; }
-.bar .fill { height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); border-radius: 2px; }
+.bar .fill { height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); border-radius: 2px; transition: 0.5s ease; }
 
 .reset-btn-pro { 
   width: 100%; margin-top: 25px; background: transparent; 
@@ -77,3 +58,7 @@ body { background: var(--dark); color: white; font-family: 'Inter', sans-serif; 
   transition: 0.3s; font-weight: 700;
 }
 .reset-btn-pro:hover { background: var(--neon); color: #000; }
+
+/* STATS */
+.neon-pts { color: var(--neon); font-weight: 900; }
+.selected { background: rgba(0, 255, 136, 0.1) !important; color: var(--neon); }
