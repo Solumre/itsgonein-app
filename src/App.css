@@ -1,37 +1,35 @@
-:root { --accent: #22c55e; --bg: #020617; --panel: #1e293b; --text-dim: #94a3b8; }
+:root { --accent: #22c55e; --bg: #020617; --card: #1e293b; --text-muted: #94a3b8; }
 body { background: var(--bg); color: #f8fafc; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; }
 
 .app-container { max-width: 1440px; margin: 0 auto; padding: 20px; height: 100vh; display: flex; flex-direction: column; }
 
-/* Dashboard Layout */
-.dashboard-layout { display: grid; grid-template-columns: 1fr 420px; gap: 40px; flex-grow: 1; overflow: hidden; padding-top: 20px; }
+/* Dashboard Grid */
+.dashboard-layout { display: grid; grid-template-columns: 1fr 450px; gap: 40px; flex-grow: 1; overflow: hidden; padding: 20px 0; }
 @media (max-width: 1100px) { .dashboard-layout { grid-template-columns: 1fr; overflow-y: auto; } }
 
-/* Fix Scrolling Issues */
+/* Independent Scroll Boxes */
 .scroll-box { height: calc(100vh - 280px); overflow-y: auto; padding-right: 15px; }
 
-/* Professional UI Elements */
-.brand { font-size: 2.2rem; font-weight: 900; letter-spacing: -2px; }
-.brand span { color: var(--accent); }
+/* Pro Components */
 .pro-card { background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; backdrop-filter: blur(10px); }
+.card-media { height: 220px; position: relative; overflow: hidden; }
+.card-media img { width: 100%; height: 100%; object-fit: cover; }
+.badge-overlay { position: absolute; top: 12px; right: 12px; background: var(--accent); color: black; font-weight: 900; padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; }
+.card-body { padding: 24px; }
+.card-date { color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; }
 
-/* News Styling */
-.media-box { height: 220px; position: relative; overflow: hidden; }
-.media-box img { width: 100%; height: 100%; object-fit: cover; }
-.result-badge { position: absolute; top: 12px; right: 12px; background: var(--accent); color: black; font-weight: 900; padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; }
-.card-info { padding: 24px; }
-.meta { color: var(--text-dim); font-size: 0.75rem; font-weight: 800; letter-spacing: 1px; }
+/* Match Center Tabs */
+.stats-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+.tab-menu button { background: none; border: none; color: var(--text-muted); font-weight: 700; padding: 8px 12px; cursor: pointer; }
+.tab-menu button.on { color: var(--accent); border-bottom: 2px solid var(--accent); }
 
-/* Match Center */
-.center-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-.tab-menu button { background: none; border: none; color: var(--text-dim); font-weight: 700; padding: 8px 12px; cursor: pointer; }
-.tab-menu button.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
-
-.pro-table { width: 100%; border-collapse: collapse; }
-.pro-table th { text-align: left; color: var(--text-dim); font-size: 0.7rem; padding-bottom: 15px; text-transform: uppercase; }
-.pro-table td { padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
-.accent-text { color: var(--accent); font-weight: 900; }
-.t-row { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-.list-row { display: flex; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+/* Data Display */
+.stats-panel { padding: 20px; }
+.stats-table { width: 100%; border-collapse: collapse; }
+.stats-table th { text-align: left; color: var(--text-muted); font-size: 0.7rem; padding-bottom: 12px; }
+.stats-table td { padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.bold-pts { color: var(--accent); font-weight: 900; }
+.t-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.list-item { display: flex; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
 
 .label-heading { font-size: 0.75rem; color: var(--accent); font-weight: 900; letter-spacing: 2px; }
