@@ -5,10 +5,14 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('TABLE');
   const [activeLeague, setActiveLeague] = useState('PL'); 
   const [loading, setLoading] = useState(false);
+  
+  // Data States
   const [tableData, setTableData] = useState([]);
-   const [selectedTeams, setSelectedTeams] = useState([]);
+  const [scorersData, setScorersData] = useState([]);
+  const [fixturesData, setFixturesData] = useState([]);
+  const [selectedTeam, setSelectedTeam] = useState(null);
 
-  // UPDATE THIS URL TO YOUR HOSTINGER URL
+  // YOUR HOSTINGER URL
   const PHP_PROXY_URL = 'https://itsgonein.com/football-proxy.php'; 
 
   const leagues = [
@@ -26,10 +30,7 @@ const App = () => {
   }, [activeTab, activeLeague]);
 
   const fetchData = async (tab, league) => {
-    setLoading(true);
-    // Reset selection when changing leagues
-    if(tab === 'TABLE') setSelectedTeams([]); 
-    
+     setLoading(true);
     let typeParam = 'standings';
     if (tab === 'SCORERS') typeParam = 'scorers';
     if (tab === 'FIXTURES') typeParam = 'matches';
@@ -38,8 +39,8 @@ const App = () => {
       const res = await fetch(`${PHP_PROXY_URL}?league=${league}&type=${typeParam}`);
       const data = await res.json();
       
-      if (data.standings) {
-        // Process Table Data
+      // 1. TABLE DATA
+      if (tab === 'TABLE' && data.standings) {
         const cleanTable = data.standings[0].table.map(t => ({
           id: t.team.id,
           rank: t.position,
@@ -51,51 +52,72 @@ const App = () => {
           lost: t.lost,
           gd: t.goalDifference,
           pts: t.points,
-          // Calculate "Power Stats" for the Pitch Visualizer
-          attPwr: Math.min(100, Math.round((t.goalsFor / t.playedGames) * 35)), 
-          defPwr: Math.min(100, Math.round(100 - (t.goalsAgainst / t.playedGames) * 30))
+          form: t.form, // "W,W,L,D,W"
+          goalsFor: t.goalsFor,
+          goalsAgainst: t.goalsAgainst
         }));
         setTableData(cleanTable);
+      } 
+      // 2. SCORERS DATA
+      else if (tab === 'SCORERS' && data.scorers) {
+        const cleanScorers = data.scorers.map((s, index) => ({
+          rank: index + 1,
+          name: s.player.name,
+          team: s.team.shortName,
+          goals: s.goals,
+          assists: s.assists || 0
+        }));
+        setScorersData(cleanScorers);
       }
+      // 3. FIXTURES DATA
+      else if (tab === 'FIXTURES' && data.matches) {
+        const upcoming = data.matches
+          .filter(m => m.status !== 'FINISHED')
+          .slice(0, 15)
+          .map(m => ({
+            id: m.id,
+            date: new Date(m.utcDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            time: new Date(m.utcDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+            home: m.homeTeam.shortName || m.homeTeam.name,
+            away: m.awayTeam.shortName || m.awayTeam.name,
+          }));
+        setFixturesData(upcoming);
+      }
+
     } catch (err) {
       console.error(err);
     }
     setLoading(false);
-  };
+   };
 
-   const handleTeamClick = (team) => {
-    if (selectedTeams.find(t => t.id === team.id)) {
-      setSelectedTeams(selectedTeams.filter(t => t.id !== team.id));
-    } else {
-      // Allow max 1 team for detailed view, or 2 for comparison. 
-      // Let's do 2 for comparison logic.
-      if (selectedTeams.length < 2) setSelectedTeams([...selectedTeams, team]);
-      else setSelectedTeams([selectedTeams[1], team]);
-    }
-  };
-
-  return (
+   return (
     <div className="app-container">
-      {/* 1. TICKER FIXED */}
+      {/* 1. FIXED TICKER (Full width, no overlap) */}
       <div className="top-ticker">
         <div className="live-badge">LIVE</div>
-        <div className="ticker-scroll">
-          {/* Duplicate content to create seamless loop */}
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="ticker-group">
-              <span className="ticker-item">Man City <b style={{color:'#00ff88', margin:'0 6px'}}>3 - 1</b> Arsenal</span>
-              <span className="ticker-item">Real Madrid <b style={{color:'#00ff88', margin:'0 6px'}}>2 - 0</b> Barcelona</span>
-              <span className="ticker-item">Bayern <b style={{color:'#aaa', margin:'0 6px'}}>0 - 0</b> Dortmund</span>
-            </div>
-          ))}
+        <div className="ticker-wrapper">
+           <div className="ticker-content">
+              <span>Man City <b className="score">3-1</b> Arsenal</span>
+              <span>Real Madrid <b className="score">2-0</b> Barcelona</span>
+              <span>Bayern <b className="score">0-0</b> Dortmund</span>
+              <span>PSG <b className="score">4-1</b> Lyon</span>
+              <span>Ajax <b className="score">1-0</b> Feyenoord</span>
+              <span>Flamengo <b className="score">2-2</b> Santos</span>
+              {/* Duplicate for infinite loop */}
+              <span>Man City <b className="score">3-1</b> Arsenal</span>
+              <span>Real Madrid <b className="score">2-0</b> Barcelona</span>
+              <span>Bayern <b className="score">0-0</b> Dortmund</span>
+              <span>PSG <b className="score">4-1</b> Lyon</span>
+           </div>
         </div>
       </div>
-       <div className="dashboard-layout">
-        {/* 2. SIDEBAR WITH NEW LEAGUES */}
+
+      <div className="dashboard-layout">
+        {/* SIDEBAR */}
         <nav className="side-nav">
-          <div className="brand">ITS<span style={{color:'var(--green)'}}>GONE</span>IN.</div>
+          <div className="brand">ITS<span className="accent">GONE</span>IN.</div>
           <div className="nav-section">
-            <label>Competitions</label>
+            <label>LEAGUES</label>
             {leagues.map(l => (
               <div 
                 key={l.code} 
@@ -108,103 +130,137 @@ const App = () => {
           </div>
         </nav>
 
-        {/* 3. MAIN TABLE */}
+        {/* MAIN STAGE */}
         <main className="main-stage">
-           <div className="data-card">
-            {loading ? <div style={{padding:40, textAlign:'center', color:'#555'}}>Scouting Data...</div> : (
+          {/* 2. TABS RESTORED HERE */}
+          <div className="tabs-header">
+            {['TABLE', 'SCORERS', 'FIXTURES'].map(tab => (
+              <button 
+                key={tab}
+                className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="data-card">
+            {loading && <div className="loading-msg">Fetching Live Data...</div>}
+            
+            {!loading && activeTab === 'TABLE' && (
               <table className="pro-table">
                 <thead>
                   <tr>
                     <th width="40">#</th>
                     <th>CLUB</th>
                     <th>PL</th>
-                    <th>W</th>
-                    <th>D</th>
-                    <th>L</th>
-                    <th>GD</th>
+                     <th>GD</th>
                     <th className="text-right">PTS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tableData.map(t => {
-                    const isSelected = selectedTeams.find(s => s.id === t.id);
-                    return (
-                      <tr key={t.id} onClick={() => handleTeamClick(t)} style={{background: isSelected ? 'rgba(0,255,136,0.05)' : ''}}>
-                        <td className="rank-cell">{t.rank}</td>
-                        <td>
-                          <div className="team-cell">
-                            <img src={t.crest} className="team-crest" alt="" />
-                            {t.name}
-                          </div>
-                        </td>
-                        <td style={{color:'#64748b'}}>{t.played}</td>
-                        <td>{t.won}</td>
-                        <td>{t.draw}</td>
-                        <td>{t.lost}</td>
-                        <td style={{fontFamily:'monospace'}}>{t.gd > 0 ? `+${t.gd}` : t.gd}</td>
-                        <td className="points-cell">{t.pts}</td>
-                      </tr>
-                    )
-                  })}
+                  {tableData.map(t => (
+                    <tr 
+                      key={t.id} 
+                      onClick={() => setSelectedTeam(t)} 
+                      className={selectedTeam?.id === t.id ? 'row-selected' : ''}
+                    >
+                      <td className="rank-cell">{t.rank}</td>
+                      <td>
+                        <div className="team-cell">
+                          <img src={t.crest} className="team-crest" alt="" />
+                          {t.name}
+                        </div>
+                      </td>
+                      <td className="dim-text">{t.played}</td>
+                      <td className="mono-text">{t.gd > 0 ? `+${t.gd}` : t.gd}</td>
+                      <td className="points-cell">{t.pts}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
+            )}
+
+            {!loading && activeTab === 'SCORERS' && (
+              <div className="list-view">
+                {scorersData.map(s => (
+                  <div key={s.name} className="list-row">
+                     <span className="rank-badge">{s.rank}</span>
+                     <div className="list-info">
+                       <span className="list-name">{s.name}</span>
+                       <span className="list-sub">{s.team}</span>
+                     </div>
+                     <span className="list-value">{s.goals}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!loading && activeTab === 'FIXTURES' && (
+              <div className="fixtures-grid">
+                {fixturesData.map(f => (
+                  <div key={f.id} className="fixture-box">
+                    <div className="fixture-meta">{f.date} <span className="dot">•</span> {f.time}</div>
+                    <div className="fixture-vs">
+                      <span>{f.home}</span>
+                      <span className="vs-label">VS</span>
+                      <span>{f.away}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </main>
 
-        {/* 4. TACTICAL ANALYST (Refined) */}
+        {/* 3. NEW RIGHT PANEL (Replaces empty blob) */}
         <section className="analyst-view">
-          <label style={{fontSize:10, letterSpacing:1, color:'#64748b', fontWeight:700}}>TACTICAL PROFILE</label>
+          <label className="panel-title">TEAM INTELLIGENCE</label>
           
-          {selectedTeams.length > 0 ? (
-            <>
-              {/* Dynamic Pitch Visualizer */}
-              <div className="pro-pitch">
-                <div className="zone-control">
-                  {/* Attack Zone (Top) */}
-                  <div className={`zone ${selectedTeams[0].attPwr > 80 ? 'zone-active' : ''}`}>
-                    HIGH PRESS
-                  </div>
-                  {/* Midfield Zone */}
-                  <div className="zone">CONTROL</div>
-                  {/* Defense Zone (Bottom) */}
-                  <div className={`zone ${selectedTeams[0].defPwr < 60 ? 'zone-danger' : ''}`}>
-                    DEFENSIVE LINE
-                  </div>
-                </div>
-              </div>
+          {selectedTeam ? (
+            <div className="team-profile">
+               <div className="profile-header">
+                  <img src={selectedTeam.crest} className="profile-crest" alt="" />
+                  <h2>{selectedTeam.name}</h2>
+                  <span className="rank-tag">Rank #{selectedTeam.rank}</span>
+               </div>
 
-              {/* Stats Bars */}
-              <div className="stats-panel">
-                <div className="stat-bar-group">
-                  <div className="stat-header">
-                    <span>ATTACKING THREAT</span>
-                    <span style={{color:'var(--green)'}}>{selectedTeams[0].attPwr}</span>
+               <div className="stat-block">
+                 <label>RECENT FORM</label>
+                 <div className="form-row">
+                   {selectedTeam.form ? selectedTeam.form.split(',').map((r, i) => (
+                     <span key={i} className={`form-pill ${r}`}>{r}</span>
+                   )) : <span className="no-data">N/A</span>}
+                 </div>
+               </div>
+
+               <div className="stat-grid">
+                 <div className="mini-stat">
+                   <span className="val">{(selectedTeam.goalsFor / selectedTeam.played).toFixed(1)}</span>
+                   <label>Goals / Game</label>
+                 </div>
+                 <div className="mini-stat">
+                   <span className="val" style={{color:'#ff4757'}}>{(selectedTeam.goalsAgainst / selectedTeam.played).toFixed(1)}</span>
+                   <label>Conceded / Game</label>
+                 </div>
+               </div>
+
+               <div className="efficiency-bar">
+                  <label>Win Rate</label>
+                  <div className="progress-bg">
+                    <div 
+                      className="progress-fill" 
+                      style={{width: `${(selectedTeam.won / selectedTeam.played) * 100}%`}}
+                    ></div>
                   </div>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{width: `${selectedTeams[0].attPwr}%`, background: 'var(--green)'}}></div>
-                  </div>
-                </div>
- 
-                <div className="stat-bar-group">
-                  <div className="stat-header">
-                    <span>DEFENSIVE SOLIDITY</span>
-                    <span style={{color: selectedTeams[0].defPwr < 60 ? 'var(--danger)' : '#3b82f6'}}>
-                      {selectedTeams[0].defPwr}
-                    </span>
-                  </div>
-                  <div className="bar-track">
-                    <div className="bar-fill" style={{
-                      width: `${selectedTeams[0].defPwr}%`, 
-                      background: selectedTeams[0].defPwr < 60 ? 'var(--danger)' : '#3b82f6'
-                    }}></div>
-                  </div>
-                </div>
-              </div>
-            </>
+                  <span className="perc">{Math.round((selectedTeam.won / selectedTeam.played) * 100)}%</span>
+               </div>
+
+            </div>
           ) : (
-            <div style={{color:'#444', fontSize:12, fontStyle:'italic'}}>
-              Select a team to view tactical analysis.
+            <div className="empty-state">
+              <p>Select a club from the table to view their intelligence report.</p>
             </div>
           )}
         </section>
