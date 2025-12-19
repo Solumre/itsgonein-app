@@ -235,53 +235,24 @@ const App = () => {
       </div>
 
       <div className="dashboard-grid">
-  <nav className="side-nav">
-    <div className="brand">ITS<span className="accent">GONE</span>IN.</div>
-    
-    {/* 1. LEAGUES SECTION */}
-    <div className="nav-group">
-      <label>LEAGUES</label>
-      {leagues.map(l => (
-        <div 
-          key={l.id} 
-          className={`nav-item ${activeLeague === l.id && currentView === 'DASHBOARD' ? 'active' : ''}`} 
-          onClick={() => {setActiveLeague(l.id); setCurrentView('DASHBOARD');}}
-        >
-          <span className="nav-icon">{l.icon}</span>
-          <span className="nav-text">{l.name}</span>
-        </div>
-      ))}
-    </div>
-
-    {/* 2. COMMUNITY / FORUM SECTION */}
-    <div className="nav-group">
-      <label>COMMUNITY</label>
-      <div 
-        className={`nav-item ${currentView === 'FORUM' ? 'active' : ''}`} 
-        onClick={() => setCurrentView('FORUM')}
-      >
-        <span className="nav-icon">💬</span>
-        <span className="nav-text">Forum</span>
+<nav className="side-nav">
+  <div className="brand">ITS<span className="accent">GONE</span>IN.</div>
+  
+  <div className="nav-group">
+    <label>LEAGUES</label>
+    {leagues.map(l => (
+      <div key={l.id} className={`nav-item ${activeLeague === l.id && currentView === 'DASHBOARD' ? 'active' : ''}`} onClick={() => {setActiveLeague(l.id); setCurrentView('DASHBOARD');}}>
+        <span className="nav-icon">{l.icon}</span><span className="nav-text">{l.name}</span>
       </div>
-    </div>
+    ))}
+  </div>
 
-    {/* 3. MOBILE USER CARD (Hidden on Desktop, Shows on Mobile Nav) */}
-    <div className="nav-group mobile-only-user">
-      <div className="nav-item" onClick={() => { if(!user) handleGoogleLogin() }}>
-        {user ? (
-          <>
-            <img src={user.photoURL} className="nav-icon small-avatar" alt="" />
-            <span className="nav-text" onClick={() => signOut(auth)}>Log Out</span>
-          </>
-        ) : (
-          <>
-            <span className="nav-icon">👤</span>
-            <span className="nav-text">Login</span>
-          </>
-        )}
-      </div>
-    </div>
-  </nav>
+  <div className="nav-group">
+    <label>COMMUNITY</label>
+    <div className="nav-item">🔥 Trending</div>
+    {/* Forum link here is optional now that you have the Floating Button */}
+  </div>
+</nav>
 
          <main className="main-feed">
            {currentView === 'DASHBOARD' && (

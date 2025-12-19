@@ -70,8 +70,14 @@ body {
   background: black; border-right: 1px solid var(--border);
   display: flex; flex-direction: column; padding: 30px 20px;
 }
- s.brand { font-weight: 900; font-size: 22px; margin-bottom: 40px; letter-spacing: -1px; }
-.brand .accent { color: var(--accent); }
+/* Restore Logo Styling */
+.brand { 
+  font-family: 'Inter', sans-serif;
+  font-weight: 900; 
+  font-size: 24px; 
+  letter-spacing: -1.5px; /* Tighter look for that pro logo feel */
+  text-transform: uppercase;
+}
 
 .nav-group { margin-bottom: 30px; }
 .nav-group label { font-size: 11px; color: var(--text-dim); font-weight: 700; margin-bottom: 15px; display: block; letter-spacing: 1px; }
@@ -410,7 +416,8 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 /* --- MOBILE RESPONSIVENESS (FINAL FIX) --- */
- @media (max-width: 768px) {
+/* --- MOBILE RESPONSIVENESS (FINAL FIX) --- */
+@media (max-width: 768px) {
   /* 1. FORCE SCROLL UNLOCK */
   html, body {
     height: auto !important;
@@ -424,7 +431,7 @@ body {
     display: block;
   }
   
-   .dashboard-grid {
+  .dashboard-grid {
     display: flex;
     flex-direction: column;
     height: auto !important;
@@ -437,7 +444,7 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 75px; /* Slightly taller for icons + text */
+    height: 75px;
     flex-direction: row; 
     justify-content: space-around;
     align-items: center;
@@ -447,14 +454,14 @@ body {
     padding: 0;
   }
 
-  /* Hide brand/labels but KEEP items */
+  /* Hide brand/labels but KEEP navigation items */
   .nav-group label, .brand { display: none; }
-   .nav-group {
+  .nav-group {
     display: flex;
     flex-direction: row;
     width: 100%;
     justify-content: space-evenly;
-    margin-bottom: 0; /* Remove desktop spacing */
+    margin-bottom: 0; 
   }
 
   .nav-item {
@@ -477,18 +484,14 @@ body {
 
   /* 4. SHOW HYPE ZONE AT BOTTOM (LOGIN/POLLS) */
   .hype-zone { 
-    display: flex !important; /* REVEALED: Login and Polls appear after fixtures */
+    display: flex !important; 
     border-left: none;
     border-top: 1px solid var(--border);
     padding: 20px;
     background: #000;
   }
 
-  /* 5. FIX FORUM VISIBILITY */
-  /* If you added the Forum item to App.jsx, ensure labels don't hide it */
-  .nav-text { display: inline-block; }
-
-  /* 6. Layout Fixes */
+  /* 5. Mobile Layout Fixes */
   .fixture-row { flex-direction: column; gap: 15px; }
   .fixture-date {
     width: 100%;
@@ -499,6 +502,7 @@ body {
   }
   .fixture-matchup { width: 100%; }
 }
+
 /* --- UNIVERSAL FLOATING FORUM BUTTON --- */
 .forum-fab {
   display: flex;
@@ -507,7 +511,7 @@ body {
   right: 30px;
   width: 60px;
   height: 60px;
-  background-color: var(--accent); /* Your dynamic green color */
+  background-color: var(--accent);
   color: black;
   border-radius: 50%;
   border: none;
@@ -529,18 +533,13 @@ body {
   transform: scale(0.95);
 }
 
-/* --- MOBILE TWEAKS --- */
+/* --- MOBILE TWEAKS FOR FLOATING BUTTON --- */
 @media (max-width: 768px) {
   .forum-fab {
-    bottom: 90px; /* Moves up so it doesn't block the bottom nav bar */
+    bottom: 90px; /* Space it above the bottom nav bar */
     right: 20px;
     width: 55px;
     height: 55px;
     font-size: 22px;
   }
-  
-  /* Remove the forum link from the sidebar/bottom nav to avoid redundancy */
-  .nav-group:has(.nav-icon:contains('💬')) {
-    display: none;
-  }
-}
+ }
