@@ -7,7 +7,7 @@ header("Content-Type: application/json");
 
 // 2. CONFIGURATION
 $apiKey = '3872efd6b7d1421bb5065cf191ff6bcf'; 
-$cacheTime = 300; // Cache for 5 minutes (300 seconds)
+$cacheTime = 300; 
 
 // 3. MAPPING
 $leagueMap = [
@@ -18,25 +18,37 @@ $leagueMap = [
 
 $leagueId = $_GET['league'] ?? '39';
 $type = $_GET['type'] ?? 'standings';
+$matchId = $_GET['match_id'] ?? null; // Added for Match Center
 $competionCode = $leagueMap[$leagueId] ?? 'PL';
 
 // 4. CACHE SETUP
-$cacheFile = "cache_{$competionCode}_{$type}.json";
+// Unique cache file per match if match_id is provided
+$cacheFile = $matchId ? "cache_match_{$matchId}.json" : "cache_{$competionCode}_{$type}.json";
 $currentTime = time();
 
-// CHECK CACHE: If file exists and is less than 5 mins old, USE IT.
-if (file_exists($cacheFile) && ($currentTime - filemtime($cacheFile) < $cacheTime)) {
+ if (file_exists($cacheFile) && ($currentTime - filemtime($cacheFile) < $cacheTime)) {
     echo file_get_contents($cacheFile);
     exit;
 }
 
-// 5. IF NO CACHE, BUILD URL
-$baseUrl = "https://api.football-data.org/v4/competitions/$competionCode";
+// 5. BUILD URL & HEADERS
+$baseUrl = "https://api.football-data.org/v4";
 $url = "";
+$headers = [ "X-Auth-Token: " . $apiKey ];
 
-if ($type === 'standings') { $url = "$baseUrl/standings"; } 
-elseif ($type === 'scorers') { $url = "$baseUrl/scorers"; } 
-elseif ($type === 'fixtures') { $url = "$baseUrl/matches?status=SCHEDULED,LIVE,IN_PLAY,PAUSED,FINISHED"; }
+if ($type === 'match_details' && $matchId) {
+    // Specific match endpoint for the timeline
+    $url = "$baseUrl/matches/$matchId";
+} 
+elseif ($type === 'standings') { 
+    $url = "$baseUrl/competitions/$competionCode/standings"; 
+} 
+elseif ($type === 'scorers') { 
+    $url = "$baseUrl/competitions/$competionCode/scorers"; 
+} 
+elseif ($type === 'fixtures') { 
+    $url = "$baseUrl/competitions/$competionCode/matches?status=SCHEDULED,LIVE,IN_PLAY,PAUSED,FINISHED"; 
+}
 
 // 6. REQUEST API
 $curl = curl_init();
@@ -44,15 +56,13 @@ curl_setopt_array($curl, [
     CURLOPT_URL => $url,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_HTTPHEADER => [ "X-Auth-Token: " . $apiKey ],
+    CURLOPT_HTTPHEADER => $headers,
 ]);
 $response = curl_exec($curl);
 $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 curl_close($curl);
 
-// 7. RATE LIMIT PROTECTION
-// If API says "Too Many Requests" (429), serve old cache even if expired
-if ($httpCode === 429 && file_exists($cacheFile)) {
+ if ($httpCode === 429 && file_exists($cacheFile)) {
     echo file_get_contents($cacheFile);
     exit;
 }
@@ -61,7 +71,40 @@ if ($httpCode === 429 && file_exists($cacheFile)) {
 $data = json_decode($response, true);
 $output = ['response' => []];
 
-if ($type === 'standings' && isset($data['standings'][0]['table'])) {
+// NEW: Match Details Adapter for Timeline
+if ($type === 'match_details' && isset($data['id'])) {
+    $events = [];
+    
+    // Extract goals for timeline
+    if (isset($data['goals'])) {
+        foreach ($data['goals'] as $g) {
+            $events[] = [
+                'time' => ($g['minute'] ?? '??') . "'",
+                'type' => 'GOAL',
+                'detail' => "Goal! " . ($g['scorer']['name'] ?? 'Unknown'),
+                'icon' => '⚽️'
+            ];
+        }
+    }
+
+    // Sort events by time (descending)
+    usort($events, function($a, $b) { 
+        return (int)$b['time'] - (int)$a['time']; 
+    });
+
+    $output['response'] = [
+        'match' => [
+            'home' => $data['homeTeam']['name'],
+            'homeLogo' => $data['homeTeam']['crest'],
+            'away' => $data['awayTeam']['name'],
+            'awayLogo' => $data['awayTeam']['crest'],
+            'score' => ($data['score']['fullTime']['home'] ?? 0) . " - " . ($data['score']['fullTime']['away'] ?? 0)
+        ],
+        'timeline' => $events
+    ];
+}
+// Existing Standings Adapter
+elseif ($type === 'standings' && isset($data['standings'][0]['table'])) {
     $cleanTable = [];
     foreach ($data['standings'][0]['table'] as $t) {
         $cleanTable[] = [
@@ -74,6 +117,7 @@ if ($type === 'standings' && isset($data['standings'][0]['table'])) {
     }
     $output['response'][] = ['league' => ['standings' => [$cleanTable]]];
 }
+// Existing Scorers Adapter
 elseif ($type === 'scorers' && isset($data['scorers'])) {
     foreach ($data['scorers'] as $s) {
         $output['response'][] = [
@@ -82,6 +126,7 @@ elseif ($type === 'scorers' && isset($data['scorers'])) {
         ];
     }
 }
+// Existing Fixtures Adapter
 elseif ($type === 'fixtures' && isset($data['matches'])) {
     $count = 0;
     foreach ($data['matches'] as $m) {
@@ -102,8 +147,7 @@ elseif ($type === 'fixtures' && isset($data['matches'])) {
 
 // 9. SAVE TO CACHE & OUTPUT
 $finalJson = json_encode($output);
-// Only save if we actually got data (not empty)
-if (!empty($output['response'])) {
+ if (!empty($output['response'])) {
     file_put_contents($cacheFile, $finalJson);
 }
 echo $finalJson;
