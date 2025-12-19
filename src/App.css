@@ -8,18 +8,17 @@
   --text: #e4e4e7;
   --text-dim: #71717a;
 }
-
-/* Update BODY to have a subtle tint of the league color */
+ 
 body {
   background: radial-gradient(circle at top right, var(--primary), transparent 40%), var(--bg);
   color: var(--text);
   font-family: 'Inter', system-ui, sans-serif; 
   margin: 0; 
   overflow: hidden;
-  transition: background 0.5s ease; /* Smooth color fade */
+  transition: background 0.5s ease;
 }
-/* --- TICKER RESTORED --- */
-/* --- Ticker Fix: Ensure Full Width --- */
+
+/* --- TICKER --- */
 .top-ticker {
   background: black; 
   height: 40px; 
@@ -28,31 +27,22 @@ body {
   overflow: hidden;
   position: relative; 
   z-index: 100; 
-  width: 100vw; /* Force full viewport width */
-  margin-left: calc(-50vw + 50%); /* Center breakout trick just in case */
-  margin-right: calc(-50vw + 50%);
+  width: 100vw;
 }
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 240px 1fr 320px;
-  height: calc(100vh - 40px);
-}
+ 
 .live-badge {
   background: var(--danger); color: white; padding: 0 15px;
   font-size: 11px; font-weight: 900; display: flex; align-items: center;
   z-index: 2; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
 }
+
 .ticker-wrapper { flex: 1; overflow: hidden; position: relative; }
 .ticker-content {
   display: flex; gap: 40px; position: absolute;
   animation: scroll 30s linear infinite; white-space: nowrap;
   align-items: center; height: 100%;
 }
-.ticker-content span { font-size: 13px; color: #94a3b8; font-weight: 500; display: flex; align-items: center; }
-.ticker-content .score { color: var(--accent); margin: 0 8px; font-weight: 700; }
-.ticker-content .min { font-size: 10px; color: var(--danger); margin-left: 6px; font-weight: 700; }
-
+ 
 @keyframes scroll {
   0% { left: 0; }
   100% { left: -50%; }
@@ -62,489 +52,141 @@ body {
 .dashboard-grid {
   display: grid;
   grid-template-columns: 240px 1fr 320px;
-  height: calc(100vh - 40px); /* Subtract Ticker Height */
+  height: calc(100vh - 40px);
 }
-
-/* SIDEBAR */
+ 
 .side-nav {
   background: black; border-right: 1px solid var(--border);
   display: flex; flex-direction: column; padding: 30px 20px;
 }
+
 .brand { font-weight: 900; font-size: 22px; margin-bottom: 40px; letter-spacing: -1px; }
 .brand .accent { color: var(--accent); }
-
-.nav-group { margin-bottom: 30px; }
-.nav-group label { font-size: 11px; color: var(--text-dim); font-weight: 700; margin-bottom: 15px; display: block; letter-spacing: 1px; }
-
+ 
 .nav-item {
   display: flex; align-items: center; gap: 12px;
   padding: 12px; border-radius: 8px; margin-bottom: 5px;
   cursor: pointer; color: var(--text-dim); transition: 0.2s; font-weight: 600; font-size: 14px;
 }
-.nav-item:hover { background: var(--border); color: white; }
-/* Update NAV ITEM active state to glow with the color */
+
 .nav-item.active { 
   background: linear-gradient(90deg, var(--primary), transparent); 
   color: white; 
   border-left: 3px solid var(--accent);
 }
-.nav-icon { font-size: 18px; }
 
-/* MAIN FEED */
-.main-feed {
-  padding: 0;
-  overflow-y: hidden;
-  display: flex; flex-direction: column;
-}
 
-.feed-header {
-  padding: 30px 40px;
-  background: linear-gradient(to bottom, #09090b 0%, rgba(9,9,11,0) 100%);
-  border-bottom: 1px solid var(--border);
-  display: flex; justify-content: space-between; align-items: flex-end;
-}
-.header-title h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -1px; }
-.header-title span { color: var(--text-dim); font-size: 13px; font-weight: 500; }
+/* --- MAIN FEED & DATA --- */
+.main-feed { padding: 0; overflow-y: hidden; display: flex; flex-direction: column; }
+.feed-content { padding: 30px 40px; overflow-y: auto; flex: 1; }
 
-.tabs { display: flex; gap: 20px; }
-.tab-btn {
-  background: none; border: none; color: var(--text-dim); padding: 10px 0;
-  font-size: 13px; font-weight: 700; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.2s;
-}
-.tab-btn:hover { color: white; }
-.tab-btn.active { color: white; border-bottom-color: var(--accent); }
-
-.feed-content {
-  padding: 30px 40px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-/* CARDS & TABLES */
-/* Update SPOTLIGHT CARD to use the dynamic colors */
-.spotlight-card {
+ .spotlight-card {
   background: linear-gradient(135deg, var(--primary) 0%, rgba(0,0,0,0.8) 100%);
-  border-radius: 16px; 
-  padding: 30px; 
-  display: flex; 
-  justify-content: space-between; 
-  align-items: center;
-  border: 1px solid rgba(255,255,255,0.1); 
-  margin-bottom: 30px; 
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  transition: background 0.5s ease;
-}
-.badge { background: #fbbf24; color: black; font-size: 10px; font-weight: 900; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 10px;}
-.spotlight-info h3 { margin: 0 0 5px; font-size: 24px; color: white; }
-.spotlight-info p { margin: 0; color: #a5b4fc; font-size: 14px; }
-.big-num { font-size: 48px; font-weight: 900; color: white; line-height: 1; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
-.label { font-size: 11px; font-weight: 700; color: #a5b4fc; display: block; text-align: right; letter-spacing: 1px; margin-top: 5px; }
-
-.data-container { background: var(--panel); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
-.modern-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.modern-table th { text-align: left; padding: 18px 25px; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
-.modern-table td { padding: 18px 25px; border-bottom: 1px solid rgba(255,255,255,0.03); }
-.modern-table tr:hover { background: rgba(255,255,255,0.03); }
-
-.team-flex { display: flex; align-items: center; gap: 15px; font-weight: 600; font-size: 15px; }
-.team-flex img { width: 28px; height: 28px; object-fit: contain; }
-.rank { color: var(--text-dim); font-weight: 700; width: 30px; }
-.pts { color: var(--accent); font-weight: 800; font-size: 15px; }
-.form-mini { font-family: monospace; color: var(--text-dim); font-size: 13px; }
-.form-mini .w { color: var(--accent); font-weight: 700; } 
-.form-mini .l { color: var(--danger); font-weight: 700; }
-
-/* LISTS (Scorers & Fixtures) */
-.scorers-list { padding: 10px; }
-.list-row {
-  display: flex; align-items: center; padding: 20px;
-  border-bottom: 1px solid var(--border); transition: 0.2s;
-}
-.list-row:last-child { border-bottom: none; }
-.list-row:hover { background: rgba(255,255,255,0.03); }
-
-.rank-badge {
-  width: 30px; height: 30px; background: #222; color: #888;
-  border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-weight: 700; margin-right: 20px; font-size: 12px;
-}
-.list-info { flex: 1; }
-.list-name { display: block; font-weight: 700; font-size: 15px; margin-bottom: 4px; }
-.list-sub { font-size: 12px; color: var(--text-dim); }
-
-.list-stat { text-align: right; }
-.stat-val { display: block; font-size: 18px; font-weight: 800; color: var(--accent); }
-.stat-label { font-size: 10px; color: var(--text-dim); font-weight: 700; }
-
-.fixtures-list { padding: 10px; }
-.fixture-row {
-  display: flex; align-items: center; padding: 20px;
-  border-bottom: 1px solid var(--border);
-}
-.fixture-row:hover { background: rgba(255,255,255,0.03); }
-
-.fixture-date { width: 80px; text-align: center; border-right: 1px solid var(--border); margin-right: 20px; }
-.fixture-date .date { display: block; font-weight: 700; color: white; font-size: 12px; margin-bottom: 4px; }
-.fixture-date .time { display: block; font-family: monospace; color: var(--accent); font-size: 12px; }
-
-.fixture-matchup { flex: 1; display: flex; align-items: center; justify-content: space-between; }
-.team { display: flex; align-items: center; gap: 10px; width: 40%; font-weight: 600; font-size: 14px; }
-.team img { width: 24px; height: 24px; object-fit: contain; }
-.team.home { justify-content: flex-end; text-align: right; }
-.team.away { justify-content: flex-start; text-align: left; }
-.vs-badge { background: #222; color: #666; font-size: 10px; font-weight: 700; padding: 4px 8px; border-radius: 4px; }
-
-/* SOCIAL HYPE */
-.hype-zone { background: black; border-left: 1px solid var(--border); padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 30px; }
-.user-card { background: var(--panel); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
-.login-prompt p { margin: 0 0 15px; font-size: 13px; color: var(--text-dim); text-align: center; }
-.google-btn { width: 100%; background: white; color: black; border: none; padding: 12px; border-radius: 6px; font-weight: 800; cursor: pointer; font-size: 12px; transition: 0.2s; }
-.logged-in { display: flex; align-items: center; gap: 15px; }
-.avatar-img { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--border); }
-.user-info h4 { margin: 0 0 5px; font-size: 15px; }
-.logout-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); font-size: 10px; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-
-.widget-box h3 { font-size: 11px; font-weight: 800; color: var(--text-dim); margin: 0 0 20px; letter-spacing: 1px; text-transform: uppercase; }
-.widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-.live-dot { color: var(--danger); font-size: 10px; font-weight: 700; animation: pulse 2s infinite; display: flex; align-items: center; gap: 5px; }
-.live-dot::before { content: ''; width: 6px; height: 6px; background: var(--danger); border-radius: 50%; display: block; }
-/* --- FIXED VOTING WIDGET --- */
-/* --- FIXED VOTING WIDGET --- */
-.vote-item {
-  background: var(--bg);
-  border-radius: 10px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  transition: 0.2s;
-  height: 54px;
-  /* Ensure the parent captures the click */
-  z-index: 1; 
-}
-.vote-item:hover { border-color: #555; }
-.vote-item.voted { cursor: default; border-color: var(--primary); }
-
-/* The colored bar moves BEHIND the text */
-.vote-bar {
-  position: absolute;
-  top: 0; left: 0; bottom: 0;
-  background: rgba(139, 92, 246, 0.2);
-  z-index: 1;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none; /* <--- ADD THIS: Ignore clicks here */
+  border-radius: 16px; padding: 30px; display: flex; justify-content: space-between;
+  border: 1px solid rgba(255,255,255,0.1); margin-bottom: 30px;
 }
 
-/* The text sits ON TOP of the bar */
-.vote-content-row {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  height: 100%;
-  box-sizing: border-box;
-  pointer-events: none; /* <--- ADD THIS: Ignore clicks here */
-}
+.modern-table { width: 100%; border-collapse: collapse; }
+.modern-table th { text-align: left; padding: 18px 25px; color: var(--text-dim); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
 
-.vote-info { display: flex; flex-direction: column; justify-content: center; }
-.vote-info span { font-weight: 700; font-size: 13px; color: white; }
-.vote-info small { font-size: 10px; color: var(--text-dim); }
-
-.vote-perc {
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--accent);
-}
-.news-item { display: flex; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-.news-icon { font-size: 24px; padding-top: 2px; }
-.news-content p { margin: 6px 0; font-size: 13px; line-height: 1.5; font-weight: 500; }
-.news-content small { color: var(--text-dim); font-size: 11px; }
-.tag { font-size: 9px; padding: 3px 8px; border-radius: 4px; font-weight: 800; text-transform: uppercase; }
-.tag.RUMOR { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-.tag.VIRAL { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-.tag.DRAMA { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
-
-/* --- CHAT INTERFACE --- */
-.chat-interface {
-  display: flex; flex-direction: column; height: 100%;
-}
-
-.chat-messages {
-  flex: 1; overflow-y: auto; padding: 20px 40px; display: flex; flex-direction: column; gap: 15px;
-}
-
-.message { display: flex; align-items: flex-start; gap: 10px; max-width: 70%; }
-.message.sent { align-self: flex-end; flex-direction: row-reverse; }
-.message.received { align-self: flex-start; }
-
-.chat-avatar { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #333; }
-.message-content {
-  background: #1a1a1a; padding: 10px 15px; border-radius: 12px; border: 1px solid #333;
-}
-.message.sent .message-content { background: var(--primary); color: white; border-color: var(--primary); }
-.msg-author { display: block; font-size: 10px; color: #888; margin-bottom: 2px; font-weight: 700; }
-.message.sent .msg-author { color: rgba(255,255,255,0.7); text-align: right; }
-.message p { margin: 0; font-size: 13px; line-height: 1.4; }
-
-.chat-input-area {
-  padding: 20px 40px; border-top: 1px solid var(--border);
-  display: flex; gap: 10px; background: #000;
-}
-.chat-input-area input {
-  flex: 1; background: #111; border: 1px solid #333; color: white;
-  padding: 12px; border-radius: 8px; font-family: inherit;
-}
-.chat-input-area button {
-  background: var(--accent); color: black; border: none; padding: 0 20px;
-  border-radius: 8px; font-weight: 800; cursor: pointer;
-}
-.chat-input-area button:disabled { background: #333; color: #555; cursor: not-allowed; }
-
-/* --- ADMIN MODERATION --- */
-.msg-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 2px;
-}
-
-.admin-delete {
-  color: var(--danger);
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: bold;
-  opacity: 0.6;
-  transition: 0.2s;
-  padding: 0 4px;
-}
-
-.admin-delete:hover {
-  opacity: 1;
-  background: rgba(239, 68, 68, 0.2);
-  border-radius: 4px;
-}
-/* Add this to the bottom of your CSS file */
-
-/* ADMIN CONTROLS */
-.admin-controls {
-  display: flex; gap: 8px;
-}
-.admin-btn {
-  cursor: pointer; font-size: 11px; opacity: 0.5; transition: 0.2s;
-}
-.admin-btn:hover { opacity: 1; transform: scale(1.1); }
-.admin-btn.delete { color: #ef4444; }
-.admin-btn.block { color: #f59e0b; }
-
-/* BANNED STATE INPUT */
-.chat-input-area input:disabled {
-  background: #222; color: #555; cursor: not-allowed; font-style: italic; border-color: #333;
-}
-/* --- FIXTURES & PREDICTIONS --- */
-.fixture-row {
-  display: flex; 
-  align-items: center; 
-  padding: 20px;
-  border-bottom: 1px solid var(--border);
-  flex-wrap: wrap; /* Allows wrapping on small screens */
-}
-
-.fixture-center-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px; /* Space between names and buttons */
-}
-
-.prediction-bar {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-}
+.fixture-row { display: flex; align-items: center; padding: 20px; border-bottom: 1px solid var(--border); }
+.prediction-bar { display: flex; justify-content: center; gap: 10px; margin-top: 5px; }
 
 .pred-btn {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  width: 40px;
-  height: 30px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 11px;
-  transition: all 0.2s;
+  background: var(--bg); border: 1px solid var(--border); color: var(--text-dim);
+  width: 40px; height: 30px; border-radius: 6px; cursor: pointer; font-weight: 800; transition: 0.2s;
 }
 
-.pred-btn:hover {
-  border-color: var(--primary);
-  color: white;
-}
+.pred-btn.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 0 10px var(--primary); }
 
-.pred-btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-  box-shadow: 0 0 10px var(--primary);
-}
+/* --- HYPE ZONE (RIGHT SIDEBAR) --- */
+.hype-zone { background: black; border-left: 1px solid var(--border); padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 30px; }
 
-.community-stats {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 5px;
-  padding: 0 10px;
-  font-size: 0.8rem;
-  color: var(--accent);
-  font-weight: bold;
-}
+/* --- MOBILE RESPONSIVENESS (UPDATED) --- */
+ @media (max-width: 768px) {
 
-.fade-in {
-  animation: fadeIn 0.5s ease-in;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-/* --- MOBILE RESPONSIVENESS (Paste at bottom of App.css) --- */
-@media (max-width: 768px) {
-
-  /* 1. Reset Grid to Single Column */
-  .app-container {
-    height: auto;
-    overflow-y: auto;
+  html, body {
+    height: auto !important;
+    overflow-y: auto !important; 
+    overflow-x: hidden;
   }
+
+  .app-container { height: auto !important; display: block; }
   
   .dashboard-grid {
-    grid-template-columns: 1fr; /* Stack everything */
-    display: flex;
+     display: flex;
     flex-direction: column;
-    height: auto;
-    padding-bottom: 80px; /* Space for bottom nav */
+    height: auto !important;
+    padding-bottom: 90px; /* Space for fixed Bottom Nav */
   }
 
-  /* 2. Transform Sidebar into Bottom Navigation Bar */
+  /* Bottom Navigation Transformation */
   .side-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 65px;
+    height: 75px;
     flex-direction: row;
     justify-content: space-around;
     align-items: center;
     background: #0f131a;
     border-top: 1px solid rgba(255,255,255,0.1);
-    border-right: none;
-    z-index: 1000;
+    z-index: 9999;
     padding: 0;
   }
 
-  .nav-group label, .brand {
-    display: none; /* Hide logo and labels on mobile nav */
-  }
+  .nav-group label, .brand { display: none; }
 
   .nav-group {
     display: flex;
     flex-direction: row;
     width: 100%;
     justify-content: space-evenly;
+    margin-bottom: 0;
   }
 
   .nav-item {
     flex-direction: column;
     padding: 5px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     margin: 0;
+    gap: 4px;
+    background: transparent !important;
+    border: none !important;
   }
 
-  .nav-icon {
-    font-size: 1.2rem;
-    margin-right: 0;
-    margin-bottom: 2px;
-  }
+  .nav-icon { font-size: 1.4rem; margin: 0; }
   
-  /* 3. Main Feed Adjustments */
+  /* Show User Avatar/Login in Bottom Nav */
+  .mobile-only-user { display: flex !important; }
+  .small-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    object-fit: cover; border: 1px solid var(--accent);
+  }
+
   .main-feed {
+    height: auto !important;
+    overflow: visible !important;
     padding: 10px;
-    overflow-y: visible; /* Let page scroll naturally */
   }
 
-  .feed-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  
-  .header-title h1 {
-    font-size: 1.8rem;
-  }
-
-  /* 4. Scrollable Tabs */
-  .tabs {
-    width: 100%;
-    justify-content: space-between;
-    overflow-x: auto; /* Allow scroll if needed */
-  }
-  
-  .tab-btn {
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    flex: 1;
-    text-align: center;
-  }
-
-  /* 5. Fix Tables & Fixtures */
-  .modern-table {
-    display: block;
-    overflow-x: auto; /* Allow horizontal scroll for tables */
-    white-space: nowrap;
-  }
-
-  .fixture-row {
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    text-align: center;
-  }
-
-  .fixture-date {
-    flex-direction: row;
-    gap: 10px;
-    width: 100%;
-    justify-content: center;
-    margin-bottom: 5px;
-    border-right: none;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    padding-bottom: 10px;
-  }
-  
-  .fixture-center-group {
-    width: 100%;
-  }
-
-  .fixture-matchup {
-    justify-content: space-between;
-    width: 100%;
-  }
-
-  .team span {
-    display: none; /* Hide full team names on mobile if too tight */
-  }
-  
-  /* Show short team code instead? Optional CSS trickery */
-  
-  /* 6. Hide Right Sidebar (Widgets) or Stack Bottom */
+  /* Unhide Sidebar Content and Stack it at Bottom */
   .hype-zone {
+    display: flex !important;
     border-left: none;
+    border-top: 1px solid var(--border);
     padding: 20px;
-    border-top: 1px solid rgba(255,255,255,0.1);
+    height: auto;
+    overflow: visible;
   }
 
-  .ticker-content {
-    animation: ticker 15s linear infinite; /* Faster ticker on mobile */
-  }
+  .fixture-row { flex-direction: column; gap: 15px; }
+  .fixture-date { width: 100%; border-right: none; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin: 0; }
+  .fixture-matchup { width: 100%; }
+}
+
+/* Hide Mobile Login on Desktop */
+@media (min-width: 769px) {
+  .mobile-only-user { display: none; }
 }
