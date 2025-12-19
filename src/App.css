@@ -499,3 +499,48 @@ body {
   }
   .fixture-matchup { width: 100%; }
 }
+/* --- UNIVERSAL FLOATING FORUM BUTTON --- */
+.forum-fab {
+  display: flex;
+  position: fixed;
+  bottom: 30px; 
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  background-color: var(--accent); /* Your dynamic green color */
+  color: black;
+  border-radius: 50%;
+  border: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+  font-size: 26px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.forum-fab:hover {
+  transform: scale(1.1) translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+}
+
+.forum-fab:active {
+  transform: scale(0.95);
+}
+
+/* --- MOBILE TWEAKS --- */
+@media (max-width: 768px) {
+  .forum-fab {
+    bottom: 90px; /* Moves up so it doesn't block the bottom nav bar */
+    right: 20px;
+    width: 55px;
+    height: 55px;
+    font-size: 22px;
+  }
+  
+  /* Remove the forum link from the sidebar/bottom nav to avoid redundancy */
+  .nav-group:has(.nav-icon:contains('💬')) {
+    display: none;
+  }
+}

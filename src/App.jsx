@@ -421,6 +421,14 @@ const App = () => {
           </div>
         </aside>
       </div>
+    {/* ✅ ADD THE BUTTON HERE */}
+      <button 
+        className="forum-fab" 
+        onClick={() => setCurrentView('FORUM')}
+        title="Open Community Forum"
+      >
+        💬
+      </button>
     </div>
   );
 };
