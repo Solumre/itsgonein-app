@@ -409,13 +409,12 @@ body {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
 }
-/* --- MOBILE RESPONSIVENESS (UPDATED) --- */
-@media (max-width: 768px) {
-
+/* --- MOBILE RESPONSIVENESS (FINAL FIX) --- */
+ @media (max-width: 768px) {
   /* 1. FORCE SCROLL UNLOCK */
   html, body {
     height: auto !important;
-    overflow-y: auto !important; /* This allows scrolling */
+    overflow-y: auto !important;
     overflow-x: hidden;
   }
 
@@ -425,21 +424,20 @@ body {
     display: block;
   }
   
-  /* 2. Stack Layout Vertically */
-  .dashboard-grid {
+   .dashboard-grid {
     display: flex;
     flex-direction: column;
     height: auto !important;
-    padding-bottom: 100px; /* Extra space at bottom so Nav doesn't cover content */
+    padding-bottom: 100px; 
   }
 
-  /* 3. Bottom Navigation Bar */
+  /* 2. Bottom Navigation Bar */
   .side-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 70px;
+    height: 75px; /* Slightly taller for icons + text */
     flex-direction: row; 
     justify-content: space-around;
     align-items: center;
@@ -449,70 +447,55 @@ body {
     padding: 0;
   }
 
+  /* Hide brand/labels but KEEP items */
   .nav-group label, .brand { display: none; }
-
-  .nav-group {
+   .nav-group {
     display: flex;
     flex-direction: row;
     width: 100%;
     justify-content: space-evenly;
-   }
+    margin-bottom: 0; /* Remove desktop spacing */
+  }
 
   .nav-item {
     flex-direction: column;
     padding: 5px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     margin: 0;
-   }
+    gap: 2px;
+  }
 
-  .nav-icon { font-size: 1.4rem; margin: 0 0 4px 0; }
+  .nav-icon { font-size: 1.4rem; margin: 0; }
   
-  /* 4. Allow Feed to Grow */
+  /* 3. Allow Feed to Grow */
   .main-feed {
     height: auto !important;
-    overflow: visible !important; /* Let the page scroll naturally */
+    overflow: visible !important;
     padding: 10px;
     padding-top: 20px;
   }
 
-  .feed-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 15px;
-  }
-  
-  .header-title h1 { font-size: 1.8rem; }
-
-  /* 5. Scrollable Elements */
-  .tabs {
-    width: 100%;
-    overflow-x: auto;
-    white-space: nowrap;
-    justify-content: flex-start;
-    gap: 10px;
-    padding-bottom: 5px; /* Space for scrollbar */
-  }
-  
-  .tab-btn { flex: none; width: auto; padding: 8px 16px; }
-
-  .modern-table { display: block; overflow-x: auto; }
-
-  /* 6. Fixture Layout */
-  .fixture-row {
-    flex-direction: column;
-     gap: 15px;
+  /* 4. SHOW HYPE ZONE AT BOTTOM (LOGIN/POLLS) */
+  .hype-zone { 
+    display: flex !important; /* REVEALED: Login and Polls appear after fixtures */
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 20px;
+    background: #000;
   }
 
-   .fixture-date {
+  /* 5. FIX FORUM VISIBILITY */
+  /* If you added the Forum item to App.jsx, ensure labels don't hide it */
+  .nav-text { display: inline-block; }
+
+  /* 6. Layout Fixes */
+  .fixture-row { flex-direction: column; gap: 15px; }
+  .fixture-date {
     width: 100%;
     justify-content: center;
-     border-right: none;
+    border-right: none;
     border-bottom: 1px solid rgba(255,255,255,0.05);
     padding-bottom: 10px;
   }
-  
-  .fixture-matchup { width: 100%; justify-content: space-between; }
-  
-  /* Hide Widgets on Mobile (Optional) */
-  .hype-zone { display: none; }
+  .fixture-matchup { width: 100%; }
 }
