@@ -409,3 +409,142 @@ body {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* --- MOBILE RESPONSIVENESS (Paste at bottom of App.css) --- */
+@media (max-width: 768px) {
+
+  /* 1. Reset Grid to Single Column */
+  .app-container {
+    height: auto;
+    overflow-y: auto;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Stack everything */
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    padding-bottom: 80px; /* Space for bottom nav */
+  }
+
+  /* 2. Transform Sidebar into Bottom Navigation Bar */
+  .side-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 65px;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    background: #0f131a;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-right: none;
+    z-index: 1000;
+    padding: 0;
+  }
+
+  .nav-group label, .brand {
+    display: none; /* Hide logo and labels on mobile nav */
+  }
+
+  .nav-group {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    justify-content: space-evenly;
+  }
+
+  .nav-item {
+    flex-direction: column;
+    padding: 5px;
+    font-size: 0.7rem;
+    margin: 0;
+  }
+
+  .nav-icon {
+    font-size: 1.2rem;
+    margin-right: 0;
+    margin-bottom: 2px;
+  }
+  
+  /* 3. Main Feed Adjustments */
+  .main-feed {
+    padding: 10px;
+    overflow-y: visible; /* Let page scroll naturally */
+  }
+
+  .feed-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .header-title h1 {
+    font-size: 1.8rem;
+  }
+
+  /* 4. Scrollable Tabs */
+  .tabs {
+    width: 100%;
+    justify-content: space-between;
+    overflow-x: auto; /* Allow scroll if needed */
+  }
+  
+  .tab-btn {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    flex: 1;
+    text-align: center;
+  }
+
+  /* 5. Fix Tables & Fixtures */
+  .modern-table {
+    display: block;
+    overflow-x: auto; /* Allow horizontal scroll for tables */
+    white-space: nowrap;
+  }
+
+  .fixture-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    text-align: center;
+  }
+
+  .fixture-date {
+    flex-direction: row;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 5px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 10px;
+  }
+  
+  .fixture-center-group {
+    width: 100%;
+  }
+
+  .fixture-matchup {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .team span {
+    display: none; /* Hide full team names on mobile if too tight */
+  }
+  
+  /* Show short team code instead? Optional CSS trickery */
+  
+  /* 6. Hide Right Sidebar (Widgets) or Stack Bottom */
+  .hype-zone {
+    border-left: none;
+    padding: 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .ticker-content {
+    animation: ticker 15s linear infinite; /* Faster ticker on mobile */
+  }
+}
