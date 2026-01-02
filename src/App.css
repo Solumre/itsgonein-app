@@ -19,18 +19,64 @@ body {
   transition: background 0.5s ease; /* Smooth color fade */
 }
 /* --- TICKER RESTORED --- */
-/* --- Ticker Fix: Ensure Full Width --- */
+/* --- Ticker Fix: Multi-Layered for Smooth Scrolling --- */
 .top-ticker {
-  background: black; 
+  background: #000; 
   height: 40px; 
   display: flex; 
   border-bottom: 1px solid var(--border); 
   overflow: hidden;
   position: relative; 
   z-index: 100; 
-  width: 100vw; /* Force full viewport width */
-  margin-left: calc(-50vw + 50%); /* Center breakout trick just in case */
+  width: 100vw; 
+  margin-left: calc(-50vw + 50%);
   margin-right: calc(-50vw + 50%);
+}
+
+.live-badge {
+  background: var(--danger); 
+  color: white; 
+  padding: 0 15px;
+  font-size: 11px; 
+  font-weight: 900; 
+  display: flex; 
+  align-items: center;
+  position: relative; /* Keeps it anchored */
+  z-index: 10; /* Higher than ticker-content */
+  box-shadow: 10px 0 20px rgba(0,0,0,0.8); /* Darker shadow so scores 'fade' behind it */
+  flex-shrink: 0; 
+}
+
+.ticker-wrapper { 
+  flex: 1; 
+  overflow: hidden; 
+  position: relative; 
+  background: #000; /* Ensures no bleed through */
+}
+
+.ticker-content {
+  display: flex; 
+  gap: 60px; /* Increased gap for better readability */
+  position: absolute;
+  animation: scroll 30s linear infinite; 
+  white-space: nowrap;
+  align-items: center; 
+  height: 100%;
+  padding-left: 20px; /* Initial starting gap so first score isn't hidden by badge */
+}
+
+.ticker-content span { 
+  font-size: 13px; 
+  color: #94a3b8; 
+  font-weight: 500; 
+  display: flex; 
+  align-items: center; 
+}
+
+.ticker-content .score { 
+  color: var(--accent); 
+  margin: 0 8px; 
+  font-weight: 700; 
 }
 
 .dashboard-grid {
@@ -38,22 +84,7 @@ body {
   grid-template-columns: 240px 1fr 320px;
   height: calc(100vh - 40px);
 }
-.live-badge {
-  background: var(--danger); color: white; padding: 0 15px;
-  font-size: 11px; font-weight: 900; display: flex; align-items: center;
-  z-index: 2; box-shadow: 5px 0 15px rgba(0,0,0,0.5);
-}
- .ticker-wrapper { flex: 1; overflow: hidden; position: relative; }
-.ticker-content {
-  display: flex; gap: 40px; position: absolute;
-  animation: scroll 30s linear infinite; white-space: nowrap;
-  align-items: center; height: 100%;
-}
-.ticker-content span { font-size: 13px; color: #94a3b8; font-weight: 500; display: flex; align-items: center; }
-.ticker-content .score { color: var(--accent); margin: 0 8px; font-weight: 700; }
-.ticker-content .min { font-size: 10px; color: var(--danger); margin-left: 6px; font-weight: 700; }
-
-@keyframes scroll {
+ @keyframes scroll {
   0% { left: 0; }
   100% { left: -50%; }
 }

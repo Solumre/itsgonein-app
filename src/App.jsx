@@ -19,11 +19,12 @@ const App = () => {
   const [user, setUser] = useState(null);
   const [isBanned, setIsBanned] = useState(false);
 
+
   // --- DATA ---
   const [tableData, setTableData] = useState([]);
   const [scorersData, setScorersData] = useState([]);
   const [fixturesData, setFixturesData] = useState([]);
-  
+  const [liveMatches, setLiveMatches] = useState([]);
   // --- CHAT & VOTES ---
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
@@ -82,7 +83,34 @@ const App = () => {
         }
       } catch (e) { console.error(e); }
     });
+// --- TICKER REFRESH LOGIC ---
+useEffect(() => {
+  const fetchLiveScores = async () => {
+    try {
+      // Using your existing proxy but requesting live games
+      const res = await fetch(`${PHP_PROXY_URL}?type=live`); 
+      const json = await res.json();
+      
+      if (json.response) {
+        setLiveMatches(json.response.map(m => ({
+          id: m.fixture.id,
+          home: m.teams.home.name,
+          away: m.teams.away.name,
+          homeScore: m.goals.home,
+          awayScore: m.goals.away,
+          status: m.fixture.status.elapsed
+        })));
+      }
+    } catch (err) {
+      console.error("Ticker Error:", err);
+    }
+  };
 
+  fetchLiveScores();
+  const tickerInterval = setInterval(fetchLiveScores, 60000); // Refresh every 1 minute
+
+  return () => clearInterval(tickerInterval);
+}, []);
     // Chat Listener
     const q = query(collection(db, "messages"), orderBy("createdAt"), limit(50));
     const unsubscribeChat = onSnapshot(q, (snapshot) => {
@@ -225,12 +253,29 @@ const App = () => {
       <div className="top-ticker">
         <div className="live-badge">LIVE</div>
         <div className="ticker-wrapper">
-           <div className="ticker-content">
-              <span>Man City <b className="score">3-1</b> Arsenal</span>
-              <span>Real Madrid <b className="score">2-0</b> Barcelona</span>
-              <span>Bayern <b className="score">4-0</b> Dortmund</span>
-              <span>Man City <b className="score">3-1</b> Arsenal</span>
-           </div>
+           <div className="top-ticker">
+  <div className="live-badge">LIVE</div>
+  <div className="ticker-wrapper">
+    <div className="ticker-content">
+      {liveMatches.length > 0 ? (
+        liveMatches.map(match => (
+          <span key={match.id}>
+            {match.home} <b className="score">{match.homeScore}-{match.awayScore}</b> {match.away}
+            <span className="ticker-minute" style={{marginLeft: '4px', color: 'var(--accent)'}}>{match.status}'</span>
+          </span>
+        ))
+      ) : (
+        <span>No live matches currently in progress</span>
+      )}
+      {/* This second map is for the infinite scroll effect */}
+      {liveMatches.map(match => (
+        <span key={`dup-${match.id}`}>
+          {match.home} <b className="score">{match.homeScore}-{match.awayScore}</b> {match.away}
+        </span>
+      ))}
+    </div>
+  </div>
+</div>
         </div>
       </div>
 
