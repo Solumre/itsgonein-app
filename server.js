@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
- import path from 'path';
+import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,12 +16,7 @@ const BASE_URL = 'https://v3.football.api-sports.io';
 
 app.get('/football-proxy', async (req, res) => {
     const { league = '39', type = 'fixtures', match_id } = req.query;
-    
-    // ✅ CORRECT SEASON FOR JAN 2026
-    const season = 2025; 
-
-    // ❌ CACHE DISABLED: We deleted the cache reading logic.
-    // This forces the server to ALWAYS fetch fresh data from the API.
+    const season = 2025; // Correct season for Jan 2026
 
     let url = '';
     if (type === 'live') url = `${BASE_URL}/fixtures?live=all&league=${league}`;
@@ -30,6 +25,7 @@ app.get('/football-proxy', async (req, res) => {
     else if (type === 'standings') url = `${BASE_URL}/standings?season=${season}&league=${league}`;
     else if (type === 'scorers') url = `${BASE_URL}/players/topscorers?season=${season}&league=${league}`;
     else if (type === 'h2h' && match_id) {
+        // H2H Logic remains same, but we will simplify the return
         try {
             const matchResp = await axios.get(`${BASE_URL}/fixtures?id=${match_id}`, { headers: { 'x-apisports-key': API_KEY } });
             if (matchResp.data.response.length > 0) {
@@ -42,60 +38,14 @@ app.get('/football-proxy', async (req, res) => {
 
     if (!url) return res.json({ response: [] });
 
-    console.log(`📡 FETCHING FRESH DATA (No Cache): ${url}`);
+    console.log(`📡 FETCHING RAW: ${url}`);
 
     try {
         const response = await axios.get(url, { headers: { 'x-apisports-key': API_KEY } });
-        const items = response.data.response || [];
         
-        console.log(`✅ SUCCESS: Found ${items.length} items`);
-
-        // TRANSFORM DATA
-        let output = { response: [] };
-        
-        if (type === 'scorers') {
-            output.response = items.map(p => ({
-                player: { name: p.player.name, photo: p.player.photo },
-                statistics: [{ team: { name: p.statistics[0].team.name }, goals: { total: p.statistics[0].goals.total } }]
-            }));
-        } else if (type === 'standings') {
-            const table = items[0]?.league?.standings?.[0] || [];
-            output.response = [{ league: { standings: [table.map(t => ({ rank: t.rank, team: t.team, points: t.points, all: t.all, form: t.form }))] } }];
-        } else if (type === 'fixtures' || type === 'live') {
-            output.response = items.map(m => ({
-                id: m.fixture.id, 
-                date: m.fixture.date, 
-                status: m.fixture.status.short, 
-                home: m.teams.home.name, 
-                homeCrest: m.teams.home.logo, 
-                away: m.teams.away.name, 
-                awayCrest: m.teams.away.logo,
-                goals: m.goals
-            }));
-        } else if (type === 'h2h') {
-            output.response = {
-                match: { score: 'VS' },
-                history: items.map(m => ({
-                    date: new Date(m.fixture.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-                    stadium: m.fixture.venue.name, 
-                    score: `${m.teams.home.name} ${m.goals.home ?? 0}-${m.goals.away ?? 0} ${m.teams.away.name}`
-                }))
-            };
-        } else if (type === 'match_details') {
-            const m = items[0];
-            if (m) {
-                output.response = {
-                    match: {
-                        home: m.teams.home.name, homeLogo: m.teams.home.logo,
-                        away: m.teams.away.name, awayLogo: m.teams.away.logo,
-                        score: `${m.goals.home ?? 0} - ${m.goals.away ?? 0}`
-                    },
-                    timeline: (m.events || []).map(e => ({ time: e.time.elapsed + "'", type: e.type, detail: `${e.detail} (${e.player.name})`, icon: e.type === 'Goal' ? '⚽️' : (e.type === 'Card' ? '🟨' : '⏱') }))
-                };
-            }
-        }
-
-         res.json(output);
+        // 🚨 THE FIX: Send the RAW response. Do not map, do not transform.
+        // This ensures the frontend gets exactly the structure it expects (fixture.id, etc.)
+        res.json(response.data); 
 
     } catch (error) {
         console.error(error);
@@ -103,6 +53,7 @@ app.get('/football-proxy', async (req, res) => {
     }
 });
 
+// Serve Frontend
 app.use(express.static(path.join(__dirname, 'dist')));
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
