@@ -124,7 +124,7 @@ app.use(express.static(path.join(__dirname, 'dist')));
 // This is the "Catch-All" route.
 // If a user goes to "your-site.com/dashboard" directly, the server won't find a file named "dashboard".
 // Instead, it sends "index.html" and lets React handle the routing.
-app.get('*', (req, res) => {
+app.get('/(.*)', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
