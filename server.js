@@ -1,10 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
-import fs from 'fs';
-import path from 'path';
+ import path from 'path';
 import { fileURLToPath } from 'url';
- 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -14,22 +13,15 @@ app.use(cors());
 // --- CONFIG ---
 const API_KEY = '810540f6bee3ad8d1858e113b549c8c2';
 const BASE_URL = 'https://v3.football.api-sports.io';
-// const CACHE_DURATION = 300; // DISABLED FOR NOW
- 
+
 app.get('/football-proxy', async (req, res) => {
     const { league = '39', type = 'fixtures', match_id } = req.query;
     
-    // ✅ CORRECT YEAR FOR JAN 2026
+    // ✅ CORRECT SEASON FOR JAN 2026
     const season = 2025; 
 
-    // --- CACHE DISABLED (To force new data) ---
-    // We are skipping the file check so it ALWAYS asks the API.
-    // Once it works, we can turn this back on.
-    /*
-    const cacheKey = `cache_${type}_${match_id || ''}_${league}`;
-    const cacheFile = path.join(__dirname, `${cacheKey}.json`);
-    if (fs.existsSync(cacheFile)) { ... }
-    */
+    // ❌ CACHE DISABLED: We deleted the cache reading logic.
+    // This forces the server to ALWAYS fetch fresh data from the API.
 
     let url = '';
     if (type === 'live') url = `${BASE_URL}/fixtures?live=all&league=${league}`;
@@ -50,13 +42,13 @@ app.get('/football-proxy', async (req, res) => {
 
     if (!url) return res.json({ response: [] });
 
-    console.log(`📡 ASKING API (No Cache): ${url}`);
+    console.log(`📡 FETCHING FRESH DATA (No Cache): ${url}`);
 
     try {
         const response = await axios.get(url, { headers: { 'x-apisports-key': API_KEY } });
         const items = response.data.response || [];
         
-        console.log(`✅ FOUND: ${items.length} items`);
+        console.log(`✅ SUCCESS: Found ${items.length} items`);
 
         // TRANSFORM DATA
         let output = { response: [] };
@@ -103,8 +95,7 @@ app.get('/football-proxy', async (req, res) => {
             }
         }
 
-        // fs.writeFileSync(cacheFile, JSON.stringify(output)); // DISABLED SAVE
-        res.json(output);
+         res.json(output);
 
     } catch (error) {
         console.error(error);
@@ -112,10 +103,10 @@ app.get('/football-proxy', async (req, res) => {
     }
 });
 
- app.use(express.static(path.join(__dirname, 'dist')));
- app.get(/.*/, (req, res) => {
+app.use(express.static(path.join(__dirname, 'dist')));
+app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
- 
+
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

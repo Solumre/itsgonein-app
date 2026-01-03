@@ -399,7 +399,7 @@ const openMatchCenter = async (fixture) => {
           {currentView === 'DASHBOARD' ? (
             <>
               <header className="feed-header">
-                <div className="header-title"><h1>{leagues.find(l => l.id === activeLeague)?.name}</h1><span>Season 2023/24</span></div>
+                <div className="header-title"><h1>{leagues.find(l => l.id === activeLeague)?.name}</h1><span>Season 2025/26</span></div>
                 <div className="tabs">
                   <button className={`tab-btn ${activeTab === 'TABLE' ? 'active' : ''}`} onClick={()=>setActiveTab('TABLE')}>STANDINGS</button>
                   <button className={`tab-btn ${activeTab === 'SCORERS' ? 'active' : ''}`} onClick={()=>setActiveTab('SCORERS')}>SCORERS</button>
