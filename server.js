@@ -16,26 +16,33 @@ const BASE_URL = 'https://v3.football.api-sports.io';
 
 app.get('/football-proxy', async (req, res) => {
     const { league = '39', type = 'fixtures', match_id } = req.query;
-    const season = 2025; // Correct season for Jan 2026
+    const season = 2025; 
 
     let url = '';
     
-    // 1. Construct the URL based on request type
+    // 1. Construct URL
     if (type === 'live') url = `${BASE_URL}/fixtures?live=all&league=${league}`;
     else if (type === 'fixtures') url = `${BASE_URL}/fixtures?league=${league}&season=${season}&next=15`;
     else if (type === 'match_details' && match_id) url = `${BASE_URL}/fixtures?id=${match_id}`;
     else if (type === 'standings') url = `${BASE_URL}/standings?season=${season}&league=${league}`;
     else if (type === 'scorers') url = `${BASE_URL}/players/topscorers?season=${season}&league=${league}`;
     else if (type === 'h2h' && match_id) {
-        // H2H Step 1: Get the match to find the two team IDs
+        // H2H Step 1: Find Team IDs
         try {
+            console.log(`🔍 H2H Lookup for Match ID: ${match_id}`);
             const matchResp = await axios.get(`${BASE_URL}/fixtures?id=${match_id}`, { headers: { 'x-apisports-key': API_KEY } });
+            
             if (matchResp.data.response.length > 0) {
                 const hID = matchResp.data.response[0].teams.home.id;
                 const aID = matchResp.data.response[0].teams.away.id;
-                url = `${BASE_URL}/fixtures/headtohead?h2h=${hID}-${aID}&last=10`;
+                console.log(`✅ Found Teams: Home(${hID}) vs Away(${aID})`);
+                
+                // Fetch last 20 matches to ensure we have data
+                url = `${BASE_URL}/fixtures/headtohead?h2h=${hID}-${aID}&last=20`;
+            } else {
+                console.log("❌ Match ID not found in API");
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("H2H Error:", e.message); }
     }
 
     if (!url) return res.json({ response: [] });
@@ -46,31 +53,55 @@ app.get('/football-proxy', async (req, res) => {
         const response = await axios.get(url, { headers: { 'x-apisports-key': API_KEY } });
         const items = response.data.response || [];
 
-        // --- 2. THE HYBRID LOGIC ---
+        // --- HYBRID LOGIC ---
         
-        // CASE A: Head-to-Head (H2H)
-        // We MUST format this because your frontend expects a specifically formatted 'score' string
-        // and a 'history' array. Raw data won't work here.
+        // CASE A: Head-to-Head (Server does the math now!)
         if (type === 'h2h') {
-             const history = items.map(m => ({
-                date: new Date(m.fixture.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-                stadium: m.fixture.venue.name, 
-                // Your frontend relies on this exact string format "TeamA 1-0 TeamB" to split the score
-                score: `${m.teams.home.name} ${m.goals.home ?? 0}-${m.goals.away ?? 0} ${m.teams.away.name}`
-            }));
-            
-            // Send it back wrapped in the object structure your App expects
+            let homeWins = 0;
+            let awayWins = 0;
+            let draws = 0;
+            let total = 0;
+
+            const history = items.map(m => {
+                const hGoals = m.goals.home ?? 0;
+                const aGoals = m.goals.away ?? 0;
+                
+                // Calculate Stats
+                if (hGoals > aGoals) homeWins++;
+                else if (aGoals > hGoals) awayWins++;
+                else draws++;
+                total++;
+
+                return {
+                    date: new Date(m.fixture.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                    stadium: m.fixture.venue.name, 
+                    score: `${m.teams.home.name} ${hGoals}-${aGoals} ${m.teams.away.name}`
+                };
+            });
+
+            // Calculate Percentages (Avoid divide by zero)
+            const safeTotal = total === 0 ? 1 : total;
+            const stats = {
+                homeWinPerc: Math.round((homeWins / safeTotal) * 100),
+                drawPerc: Math.round((draws / safeTotal) * 100),
+                awayWinPerc: Math.round((awayWins / safeTotal) * 100)
+            };
+
+            // If no history, default to 33/33/33 only for visual balance
+            if (total === 0) {
+                stats.homeWinPerc = 33; stats.drawPerc = 34; stats.awayWinPerc = 33;
+            }
+
             return res.json({ 
                 response: { 
-                    match: { score: 'VS' }, // Default placeholder
-                    history: history 
+                    match: { score: 'VS' }, 
+                    history: history,
+                    stats: stats // <--- Sending pre-calculated stats!
                 } 
             });
         }
 
-        // CASE B: Everything else (Fixtures, Standings, Scorers)
-        // For these, the frontend is happy with raw data (or close enough to it).
-        // Pass it through raw to avoid bugs.
+        // CASE B: Pass everything else through raw
         res.json(response.data); 
 
     } catch (error) {
@@ -78,8 +109,7 @@ app.get('/football-proxy', async (req, res) => {
         res.status(500).json({ error: 'Failed' });
     }
 });
-
-// Serve Frontend
+ 
 app.use(express.static(path.join(__dirname, 'dist')));
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
