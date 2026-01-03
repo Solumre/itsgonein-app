@@ -1,154 +1,191 @@
 <?php
-// 1. HEADERS
+// FOOTBALL-PROXY.PHP (FULL API-SPORTS DIRECT VERSION)
+// 100% COMPLETE: Includes H2H, Standings, Timeline, Scorers, Live
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, X-Auth-Token");
+header("Access-Control-Allow-Headers: Content-Type, x-apisports-key");
 header("Content-Type: application/json");
 
+// 1. YOUR NEW DIRECT KEY
+// Copy this from the Dashboard where you just paid $19
+$apiKey = '810540f6bee3ad8d1858e113b549c8c2'; 
+
 // 2. CONFIGURATION
-$apiKey = '3872efd6b7d1421bb5065cf191ff6bcf'; 
-$cacheTime = 300; 
+$leagueId = $_GET['league'] ?? '39'; // Premier League defaults to 39
+$type = $_GET['type'] ?? 'fixtures';
+$matchId = $_GET['match_id'] ?? null; 
+$cacheTime = 300; // 5 Minutes Cache
 
-// 3. MAPPING
-$leagueMap = [
-    '39'  => 'PL',   '140' => 'PD',   '78'  => 'BL1',
-    '135' => 'SA',   '61'  => 'FL1',  '88'  => 'DED',
-    '71'  => 'BSA',  '94'  => 'PPL'
-];
-
-$leagueId = $_GET['league'] ?? '39';
-$type = $_GET['type'] ?? 'standings';
-$matchId = $_GET['match_id'] ?? null; // Added for Match Center
-$competionCode = $leagueMap[$leagueId] ?? 'PL';
-
-// 4. CACHE SETUP
-// Unique cache file per match if match_id is provided
-$cacheFile = $matchId ? "cache_match_{$matchId}.json" : "cache_{$competionCode}_{$type}.json";
-$currentTime = time();
-
- if (file_exists($cacheFile) && ($currentTime - filemtime($cacheFile) < $cacheTime)) {
+// 3. CACHE SETUP
+$cacheFile = "cache_" . md5($type . $matchId . $leagueId) . ".json";
+if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $cacheTime)) {
     echo file_get_contents($cacheFile);
     exit;
 }
 
-// 5. BUILD URL & HEADERS
-$baseUrl = "https://api.football-data.org/v4";
+// 4. API ROUTING (Direct Endpoints)
+$baseUrl = "https://v3.football.api-sports.io";
 $url = "";
-$headers = [ "X-Auth-Token: " . $apiKey ];
 
-if ($type === 'match_details' && $matchId) {
-    // Specific match endpoint for the timeline
-    $url = "$baseUrl/matches/$matchId";
+if ($type === 'live') {
+    $url = "$baseUrl/fixtures?live=all&league=$leagueId";
+}
+elseif ($type === 'fixtures') {
+    // Get next 15 scheduled matches
+    $url = "$baseUrl/fixtures?league=$leagueId&season=2023&next=15";
+}
+elseif ($type === 'match_details' && $matchId) {
+    // Get stats, lineups, events for a specific match
+    $url = "$baseUrl/fixtures?id=$matchId";
 } 
-elseif ($type === 'standings') { 
-    $url = "$baseUrl/competitions/$competionCode/standings"; 
-} 
-elseif ($type === 'scorers') { 
-    $url = "$baseUrl/competitions/$competionCode/scorers"; 
-} 
-elseif ($type === 'fixtures') { 
-    $url = "$baseUrl/competitions/$competionCode/matches?status=SCHEDULED,LIVE,IN_PLAY,PAUSED,FINISHED"; 
+elseif ($type === 'h2h' && $matchId) {
+    // SPECIAL FETCH: We need Team IDs to get H2H
+    // 1. Get Match Info first
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => "$baseUrl/fixtures?id=$matchId",
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => ["x-apisports-key: $apiKey"]
+    ]);
+    $matchRes = json_decode(curl_exec($ch), true);
+    curl_close($ch);
+    
+    // 2. Use Team IDs to fetch H2H history
+    if (!empty($matchRes['response'])) {
+        $hID = $matchRes['response'][0]['teams']['home']['id'];
+        $aID = $matchRes['response'][0]['teams']['away']['id'];
+        $url = "$baseUrl/fixtures/headtohead?h2h=$hID-$aID&last=10";
+    }
+}
+elseif ($type === 'standings') {
+    $url = "$baseUrl/standings?season=2023&league=$leagueId";
+}
+elseif ($type === 'scorers') {
+    $url = "$baseUrl/players/topscorers?season=2023&league=$leagueId";
 }
 
-// 6. REQUEST API
+// 5. EXECUTE REQUEST
+// Note: Direct API uses 'x-apisports-key' header
 $curl = curl_init();
 curl_setopt_array($curl, [
     CURLOPT_URL => $url,
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_HTTPHEADER => $headers,
+    CURLOPT_HTTPHEADER => [ "x-apisports-key: $apiKey" ],
 ]);
 $response = curl_exec($curl);
-$httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
 curl_close($curl);
 
- if ($httpCode === 429 && file_exists($cacheFile)) {
-    echo file_get_contents($cacheFile);
-    exit;
-}
-
-// 8. ADAPTER (Transform Data)
+// 6. ADAPTERS (Standardize Data for Frontend)
 $data = json_decode($response, true);
 $output = ['response' => []];
+$items = $data['response'] ?? [];
 
-// NEW: Match Details Adapter for Timeline
-if ($type === 'match_details' && isset($data['id'])) {
+// --- FIXTURES & LIVE ---
+if ($type === 'fixtures' || $type === 'live') {
+    foreach ($items as $m) {
+        $output['response'][] = [
+            'fixture' => [ 
+                'id' => $m['fixture']['id'], 
+                'date' => $m['fixture']['date'], 
+                'status' => ['short' => $m['fixture']['status']['short']] 
+            ],
+            'teams' => [
+                'home' => ['id' => $m['teams']['home']['id'], 'name' => $m['teams']['home']['name'], 'logo' => $m['teams']['home']['logo']],
+                'away' => ['id' => $m['teams']['away']['id'], 'name' => $m['teams']['away']['name'], 'logo' => $m['teams']['away']['logo']]
+            ],
+            'goals' => [ 'home' => $m['goals']['home'], 'away' => $m['goals']['away'] ]
+        ];
+    }
+}
+
+// --- H2H HISTORY ---
+elseif ($type === 'h2h') {
+    $history = [];
+    foreach ($items as $m) {
+        $history[] = [
+            'date' => date('d M Y', strtotime($m['fixture']['date'])),
+            'score' => $m['teams']['home']['name'] . " " . 
+                       ($m['goals']['home'] ?? 0) . "-" . 
+                       ($m['goals']['away'] ?? 0) . " " . 
+                       $m['teams']['away']['name']
+        ];
+    }
+    $output['response'] = [
+        'match' => ['score' => 'VS'], 
+        'history' => $history
+    ];
+}
+
+// --- MATCH DETAILS (Timeline & Stats) ---
+elseif ($type === 'match_details') {
+    $m = $items[0] ?? null;
     $events = [];
     
-    // Extract goals for timeline
-    if (isset($data['goals'])) {
-        foreach ($data['goals'] as $g) {
+    // Process Timeline Events (Goals, Cards)
+    if (isset($m['events'])) {
+        foreach ($m['events'] as $e) {
+            $icon = '⏱';
+            if ($e['type'] === 'Goal') $icon = '⚽️';
+            if ($e['type'] === 'Card') $icon = '🟨';
+            if ($e['detail'] === 'Red Card') $icon = '🟥';
+            
             $events[] = [
-                'time' => ($g['minute'] ?? '??') . "'",
-                'type' => 'GOAL',
-                'detail' => "Goal! " . ($g['scorer']['name'] ?? 'Unknown'),
-                'icon' => '⚽️'
+                'time' => $e['time']['elapsed'] . "'",
+                'type' => $e['type'],
+                'detail' => $e['detail'] . " (" . $e['player']['name'] . ")",
+                'icon' => $icon
             ];
         }
     }
-
-    // Sort events by time (descending)
-    usort($events, function($a, $b) { 
-        return (int)$b['time'] - (int)$a['time']; 
-    });
-
+    
     $output['response'] = [
         'match' => [
-            'home' => $data['homeTeam']['name'],
-            'homeLogo' => $data['homeTeam']['crest'],
-            'away' => $data['awayTeam']['name'],
-            'awayLogo' => $data['awayTeam']['crest'],
-            'score' => ($data['score']['fullTime']['home'] ?? 0) . " - " . ($data['score']['fullTime']['away'] ?? 0)
+            'home' => $m['teams']['home']['name'],
+            'homeLogo' => $m['teams']['home']['logo'],
+            'away' => $m['teams']['away']['name'],
+            'awayLogo' => $m['teams']['away']['logo'],
+            'score' => ($m['goals']['home'] ?? 0) . " - " . ($m['goals']['away'] ?? 0)
         ],
         'timeline' => $events
     ];
 }
-// Existing Standings Adapter
-elseif ($type === 'standings' && isset($data['standings'][0]['table'])) {
+
+// --- STANDINGS ---
+elseif ($type === 'standings') {
+    $table = $items[0]['league']['standings'][0] ?? [];
     $cleanTable = [];
-    foreach ($data['standings'][0]['table'] as $t) {
+    foreach ($table as $t) {
         $cleanTable[] = [
-            'rank' => $t['position'],
-            'team' => ['id' => $t['team']['id'], 'name' => $t['team']['name'], 'logo' => $t['team']['crest']],
+            'rank' => $t['rank'],
+            'team' => ['name' => $t['team']['name'], 'logo' => $t['team']['logo']],
             'points' => $t['points'],
-            'all' => ['played' => $t['playedGames'], 'win' => $t['won'], 'draw' => $t['draw'], 'lose' => $t['lost']],
-            'form' => str_replace(',', '', $t['form'] ?? '')
+            'all' => ['played' => $t['all']['played'], 'win' => $t['all']['win'], 'draw' => $t['all']['draw'], 'lose' => $t['all']['lose']],
+            'form' => $t['form']
         ];
     }
     $output['response'][] = ['league' => ['standings' => [$cleanTable]]];
 }
-// Existing Scorers Adapter
-elseif ($type === 'scorers' && isset($data['scorers'])) {
-    foreach ($data['scorers'] as $s) {
+
+// --- TOP SCORERS ---
+elseif ($type === 'scorers') {
+    foreach ($items as $p) {
         $output['response'][] = [
-            'player' => ['name' => $s['player']['name'], 'photo' => 'https://crests.football-data.org/generic.png'], 
-            'statistics' => [['team' => ['name' => $s['team']['name']], 'goals' => ['total' => $s['goals']]]]
+            'player' => ['name' => $p['player']['name'], 'photo' => $p['player']['photo']],
+            'statistics' => [[
+                'team' => ['name' => $p['statistics'][0]['team']['name']],
+                'goals' => ['total' => $p['statistics'][0]['goals']['total']]
+            ]]
         ];
     }
 }
-// Existing Fixtures Adapter
-elseif ($type === 'fixtures' && isset($data['matches'])) {
-    $count = 0;
-    foreach ($data['matches'] as $m) {
-        if ($m['status'] !== 'FINISHED') {
-            $output['response'][] = [
-                'fixture' => [ 'id' => $m['id'], 'date' => $m['utcDate'], 'status' => ['short' => $m['status']] ],
-                'teams' => [
-                    'home' => ['name' => $m['homeTeam']['name'], 'logo' => $m['homeTeam']['crest']],
-                    'away' => ['name' => $m['awayTeam']['name'], 'logo' => $m['awayTeam']['crest']]
-                ],
-                'goals' => [ 'home' => $m['score']['fullTime']['home'], 'away' => $m['score']['fullTime']['away'] ]
-            ];
-            $count++;
-            if ($count >= 15) break; 
-        }
-    }
-}
 
-// 9. SAVE TO CACHE & OUTPUT
+// 7. OUTPUT & SAVE CACHE
 $finalJson = json_encode($output);
- if (!empty($output['response'])) {
+
+// Only save to cache if we actually got data (prevents saving errors)
+if (!empty($output['response'])) {
     file_put_contents($cacheFile, $finalJson);
 }
+
 echo $finalJson;
 ?>
