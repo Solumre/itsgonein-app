@@ -21,7 +21,7 @@ const CACHE_DURATION = 300; // 5 minutes cache (Great for production to save API
 // This handles ALL data requests from your React app
 app.get('/football-proxy', async (req, res) => {
     const { league = '39', type = 'fixtures', match_id } = req.query;
-    const season = 2025; // Updated to the correct season
+    const season = 2024; // Updated to the correct season
 
     // A. CACHE CHECK (Speed Optimization)
     const cacheKey = `cache_${type}_${match_id || ''}_${league}`;

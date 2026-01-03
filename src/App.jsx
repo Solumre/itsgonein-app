@@ -11,8 +11,7 @@ import {
 const goalSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
 const App = () => {
-const PHP_PROXY_URL = '/football-proxy';
-  const ADMIN_EMAIL = "tm@solumre.com"; 
+const PHP_PROXY_URL = 'https://itsgonein-app.onrender.com/football-proxy';  const ADMIN_EMAIL = "tm@solumre.com"; 
 
   // --- STATE ---
   const [currentView, setCurrentView] = useState('DASHBOARD');
