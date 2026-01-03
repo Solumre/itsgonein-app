@@ -19,13 +19,15 @@ app.get('/football-proxy', async (req, res) => {
     const season = 2025; // Correct season for Jan 2026
 
     let url = '';
+    
+    // 1. Construct the URL based on request type
     if (type === 'live') url = `${BASE_URL}/fixtures?live=all&league=${league}`;
     else if (type === 'fixtures') url = `${BASE_URL}/fixtures?league=${league}&season=${season}&next=15`;
     else if (type === 'match_details' && match_id) url = `${BASE_URL}/fixtures?id=${match_id}`;
     else if (type === 'standings') url = `${BASE_URL}/standings?season=${season}&league=${league}`;
     else if (type === 'scorers') url = `${BASE_URL}/players/topscorers?season=${season}&league=${league}`;
     else if (type === 'h2h' && match_id) {
-        // H2H Logic remains same, but we will simplify the return
+        // H2H Step 1: Get the match to find the two team IDs
         try {
             const matchResp = await axios.get(`${BASE_URL}/fixtures?id=${match_id}`, { headers: { 'x-apisports-key': API_KEY } });
             if (matchResp.data.response.length > 0) {
@@ -38,13 +40,37 @@ app.get('/football-proxy', async (req, res) => {
 
     if (!url) return res.json({ response: [] });
 
-    console.log(`📡 FETCHING RAW: ${url}`);
+    console.log(`📡 FETCHING: ${url}`);
 
     try {
         const response = await axios.get(url, { headers: { 'x-apisports-key': API_KEY } });
+        const items = response.data.response || [];
+
+        // --- 2. THE HYBRID LOGIC ---
         
-        // 🚨 THE FIX: Send the RAW response. Do not map, do not transform.
-        // This ensures the frontend gets exactly the structure it expects (fixture.id, etc.)
+        // CASE A: Head-to-Head (H2H)
+        // We MUST format this because your frontend expects a specifically formatted 'score' string
+        // and a 'history' array. Raw data won't work here.
+        if (type === 'h2h') {
+             const history = items.map(m => ({
+                date: new Date(m.fixture.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                stadium: m.fixture.venue.name, 
+                // Your frontend relies on this exact string format "TeamA 1-0 TeamB" to split the score
+                score: `${m.teams.home.name} ${m.goals.home ?? 0}-${m.goals.away ?? 0} ${m.teams.away.name}`
+            }));
+            
+            // Send it back wrapped in the object structure your App expects
+            return res.json({ 
+                response: { 
+                    match: { score: 'VS' }, // Default placeholder
+                    history: history 
+                } 
+            });
+        }
+
+        // CASE B: Everything else (Fixtures, Standings, Scorers)
+        // For these, the frontend is happy with raw data (or close enough to it).
+        // Pass it through raw to avoid bugs.
         res.json(response.data); 
 
     } catch (error) {
