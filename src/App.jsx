@@ -11,7 +11,7 @@ import {
 const goalSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
 const App = () => {
-  const PHP_PROXY_URL = 'https://itsgonein.com/football-proxy.php';
+const PHP_PROXY_URL = '/football-proxy';
   const ADMIN_EMAIL = "tm@solumre.com"; 
 
   // --- STATE ---
@@ -90,6 +90,9 @@ const App = () => {
     const q = query(collection(db, "messages"), orderBy("createdAt"), limit(50));
     const unsubscribeChat = onSnapshot(q, (snapshot) => {
       setMessages(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+      setTimeout(() => {
+  dummyDiv.current?.scrollIntoView({ behavior: 'smooth' });
+}, 100);
       dummyDiv.current?.scrollIntoView({ behavior: 'smooth' });
     });
 
@@ -132,41 +135,56 @@ const App = () => {
       document.documentElement.style.setProperty('--primary', activeData.color);
       document.documentElement.style.setProperty('--accent', activeData.accent);
     }
-     const loadLeagueData = async () => {
-      setLoading(true);
-       try {
-        const resTable = await fetch(`${PHP_PROXY_URL}?league=${activeLeague}&type=standings`);
-        const jsonTable = await resTable.json();
-        if (jsonTable.response?.[0]) {
-          const standingsRaw = jsonTable.response[0].league.standings[0];
-          setTableData(standingsRaw.map(t => ({
-            rank: t.rank, id: t.team.id, name: t.team.name, crest: t.team.logo,
-            played: t.all.played, won: t.all.win, draw: t.all.draw, lost: t.all.lose, points: t.points, form: t.form 
-          })));
-        }
-         const resScorers = await fetch(`${PHP_PROXY_URL}?league=${activeLeague}&type=scorers`);
-        const jsonScorers = await resScorers.json();
-        if (jsonScorers.response) {
-          setScorersData(jsonScorers.response.map((s, i) => ({
-            rank: i + 1, name: s.player.name, team: s.statistics[0].team.name, goals: s.statistics[0].goals.total
-          })));
-        }
-         const resFixtures = await fetch(`${PHP_PROXY_URL}?league=${activeLeague}&type=fixtures`);
-        const jsonFixtures = await resFixtures.json();
-        if (jsonFixtures.response) {
-          setFixturesData(jsonFixtures.response.map(f => ({
-            id: f.fixture.id,
-            homeId: f.teams.home.id,
-            awayId: f.teams.away.id,
-            status: f.fixture.status.short,
-            date: new Date(f.fixture.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            time: new Date(f.fixture.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-            home: f.teams.home.name, homeCrest: f.teams.home.logo, away: f.teams.away.name, awayCrest: f.teams.away.logo
-          })));
-        }
-      } catch (err) { console.error(err); }
-      setLoading(false);
-    };
+// Inside useEffect [activeLeague]
+const loadLeagueData = async () => {
+  setLoading(true);
+  try {
+    // Fire all 3 requests at the same time
+    const [resTable, resScorers, resFixtures] = await Promise.all([
+      fetch(`${PHP_PROXY_URL}?league=${activeLeague}&type=standings`),
+      fetch(`${PHP_PROXY_URL}?league=${activeLeague}&type=scorers`),
+      fetch(`${PHP_PROXY_URL}?league=${activeLeague}&type=fixtures`)
+    ]);
+
+    const jsonTable = await resTable.json();
+    const jsonScorers = await resScorers.json();
+    const jsonFixtures = await resFixtures.json();
+
+    // 1. Process Table
+    if (jsonTable.response?.[0]) {
+      const standingsRaw = jsonTable.response[0].league.standings[0];
+      setTableData(standingsRaw.map(t => ({
+        rank: t.rank, id: t.team.id, name: t.team.name, crest: t.team.logo,
+        played: t.all.played, won: t.all.win, draw: t.all.draw, lost: t.all.lose, points: t.points, form: t.form 
+      })));
+    }
+
+    // 2. Process Scorers
+    if (jsonScorers.response) {
+      setScorersData(jsonScorers.response.map((s, i) => ({
+        rank: i + 1, name: s.player.name, team: s.statistics[0].team.name, goals: s.statistics[0].goals.total
+      })));
+    }
+
+    // 3. Process Fixtures
+    if (jsonFixtures.response) {
+      setFixturesData(jsonFixtures.response.map(f => ({
+        id: f.fixture.id,
+        homeId: f.teams.home.id,
+        awayId: f.teams.away.id,
+        status: f.fixture.status.short,
+        date: new Date(f.fixture.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+        time: new Date(f.fixture.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        home: f.teams.home.name, homeCrest: f.teams.home.logo, away: f.teams.away.name, awayCrest: f.teams.away.logo
+      })));
+    }
+
+  } catch (err) { 
+    console.error("Error loading league data:", err); 
+  } finally {
+    setLoading(false);
+  }
+};
      loadLeagueData();
   }, [activeLeague]);
 
@@ -195,7 +213,7 @@ const App = () => {
   }, [selectedMatch, matchDetails?.match?.score, matchDetails?.viewType]);
 
   // --- ACTIONS ---
-  const openMatchCenter = async (fixture) => {
+const openMatchCenter = async (fixture) => {
     setSelectedMatch(fixture.id);
     
     // 1. Initial State
@@ -205,36 +223,70 @@ const App = () => {
         homeLogo: fixture.homeCrest,
         away: fixture.away,
         awayLogo: fixture.awayCrest,
-        score: "LOADING..." // Initial state
+        score: "LOADING..." 
       },
       viewType: 'loading', 
-      history: [] 
+      history: [],
+      stats: { homeWinPerc: 0, drawPerc: 0, awayWinPerc: 0 } // Prevent crash before load
     });
 
     try {
-      const isScheduled = (fixture.status === 'SCHEDULED' || fixture.status === 'TIMED');
+      // Added 'NS' (Not Started) which is the most common pre-match code
+      const isScheduled = ['SCHEDULED', 'TIMED', 'NS', 'TBD'].includes(fixture.status);
       const fetchType = isScheduled ? 'h2h' : 'match_details';
       
-      // Add timestamp to URL to prevent browser caching
+      // Add timestamp to prevent caching
       const res = await fetch(`${PHP_PROXY_URL}?type=${fetchType}&match_id=${fixture.id}&t=${Date.now()}`);
       const json = await res.json();
       
-      console.log("API Response:", json); // Check your console for this!
+      console.log("API Response:", json); 
 
       if (json.response) {
+        
+        // --- NEW: CALCULATE DOMINANCE STATS ---
+        let calculatedStats = { homeWinPerc: 33, drawPerc: 34, awayWinPerc: 33 }; // Fallback defaults
+
+        if (fetchType === 'h2h' && json.response.history && json.response.history.length > 0) {
+            let hWins = 0, draws = 0, aWins = 0, total = 0;
+            
+            json.response.history.forEach(match => {
+                // Regex to find the score "2-1" hidden inside the string "Arsenal 2-1 Chelsea"
+                const scoreMatch = match.score.match(/(\d+)-(\d+)/);
+                if (scoreMatch) {
+                    total++;
+                    const homeGoals = parseInt(scoreMatch[1]);
+                    const awayGoals = parseInt(scoreMatch[2]);
+                    
+                    if (homeGoals > awayGoals) hWins++;
+                    else if (awayGoals > homeGoals) aWins++;
+                    else draws++;
+                }
+            });
+
+            if (total > 0) {
+                calculatedStats = {
+                    homeWinPerc: Math.round((hWins / total) * 100),
+                    drawPerc: Math.round((draws / total) * 100),
+                    awayWinPerc: Math.round((aWins / total) * 100)
+                };
+            }
+        }
+        // --------------------------------------
+
         setMatchDetails(prev => ({
           ...prev,
           ...json.response,
+          stats: calculatedStats, // Inject the stats we just calculated
           viewType: fetchType,
           match: {
-            ...prev.match,
-            // CRITICAL FIX: If API returns no score, force "VS" so "LOADING..." disappears
+             ...prev.match,
             score: json.response.match?.score || "VS",
             ...(json.response.match || {}) 
           }
         }));
+
       } else {
-        // Fallback: If response is empty, just show the VS screen
+        // Fallback for empty response
         setMatchDetails(prev => ({ 
             ...prev, 
             viewType: fetchType,
@@ -423,23 +475,39 @@ const App = () => {
                                        </div>
                                      </div>
                                    )}
-                                 <div className="h2h-history">
-                                     <h4 className="section-title">PREVIOUS ENCOUNTERS</h4>
-                                     {matchDetails.history && matchDetails.history.length > 0 ? (
-                                       matchDetails.history.map((m, idx) => (
-                                         <div key={idx} className="h2h-row">
-                                           <span>{m.date}</span>
-                                           <span>{m.score}</span>
-                                         </div>
-                                       ))
-                                     ) : (
-                                       /* UPDATED EMPTY STATE */
-                                       <div style={{padding: '30px', textAlign: 'center', opacity: 0.6}}>
-                                         <div style={{fontSize: '24px', marginBottom: '10px'}}>🔒</div>
-                                         <p style={{fontSize: '13px', margin: 0}}>Head-to-Head data unavailable.</p>
-                                       </div>
-                                     )}
-                                   </div>
+                        
+<div className="h2h-history">
+  <h4 className="section-title">PREVIOUS ENCOUNTERS</h4>
+  
+  {matchDetails.history && matchDetails.history.length > 0 ? (
+    matchDetails.history.map((m, idx) => {
+      const parts = m.score.split(/(\d+\s*-\s*\d+)/);
+      const homeName = parts[0] || "";
+      const scoreStr = parts[1] || "";
+      const awayName = parts[2] || "";
+
+      return (
+        <div key={idx} className="h2h-row">
+          <div className="h-team">{homeName}</div>
+          
+          <div className="h-center">
+             <span className="h-date">{m.date}</span>
+             {/* NEW: Stadium Line */}
+             <span className="h-stadium">{m.stadium}</span>
+             <div className="h-score">{scoreStr.replace(/-/g, '-')}</div>
+          </div>
+
+          <div className="h-team away">{awayName}</div>
+        </div>
+      );
+    })
+  ) : (
+    <div className="empty-state">
+      <div style={{fontSize: '24px', marginBottom: '10px'}}>🔒</div>
+      <p>Head-to-Head data unavailable.</p>
+    </div>
+  )}
+</div>
                                  </div>
                                ) : (
                                  <div className="timeline">
