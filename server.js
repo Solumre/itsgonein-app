@@ -5,25 +5,26 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// 1. SETUP: Fix for __dirname in ES Modules (Standard Node boilerplate)
+// Fix for __dirname in ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(cors()); // Allows browser requests
+app.use(cors());
 
-// --- CONFIGURATION ---
+// --- CONFIG ---
 const API_KEY = '810540f6bee3ad8d1858e113b549c8c2';
 const BASE_URL = 'https://v3.football.api-sports.io';
-const CACHE_DURATION = 300; // 5 minutes cache (Great for production to save API calls)
+const CACHE_DURATION = 300; // 5 minutes cache
 
-// --- 2. THE API PROXY ROUTE ---
-// This handles ALL data requests from your React app
+// --- 1. API ROUTES (The Proxy) ---
 app.get('/football-proxy', async (req, res) => {
     const { league = '39', type = 'fixtures', match_id } = req.query;
-    const season = 2024; // Updated to the correct season
+    
+    // ✅ CRITICAL FIX: Set to 2024 for the current active season
+    const season = 2024; 
 
-    // A. CACHE CHECK (Speed Optimization)
+    // Cache Logic
     const cacheKey = `cache_${type}_${match_id || ''}_${league}`;
     const cacheFile = path.join(__dirname, `${cacheKey}.json`);
 
@@ -31,21 +32,20 @@ app.get('/football-proxy', async (req, res) => {
         const stats = fs.statSync(cacheFile);
         const age = (Date.now() - stats.mtimeMs) / 1000;
         if (age < CACHE_DURATION) {
-            // Serve from file instead of hitting the API
+            console.log(`📂 Serving from Cache: ${cacheKey}`);
             const cachedData = fs.readFileSync(cacheFile, 'utf8');
             return res.json(JSON.parse(cachedData));
         }
     }
 
-    // B. BUILD URL (Determine what to fetch)
+    // Construct URL
     let url = '';
     if (type === 'live') url = `${BASE_URL}/fixtures?live=all&league=${league}`;
     else if (type === 'fixtures') url = `${BASE_URL}/fixtures?league=${league}&season=${season}&next=15`;
     else if (type === 'match_details' && match_id) url = `${BASE_URL}/fixtures?id=${match_id}`;
     else if (type === 'standings') url = `${BASE_URL}/standings?season=${season}&league=${league}`;
     else if (type === 'scorers') url = `${BASE_URL}/players/topscorers?season=${season}&league=${league}`;
-    else if (type === 'h2h' && match_id) {
-        // H2H requires a preliminary fetch to get team IDs
+     else if (type === 'h2h' && match_id) {
         try {
             const matchResp = await axios.get(`${BASE_URL}/fixtures?id=${match_id}`, { headers: { 'x-apisports-key': API_KEY } });
             if (matchResp.data.response.length > 0) {
@@ -53,16 +53,20 @@ app.get('/football-proxy', async (req, res) => {
                 const aID = matchResp.data.response[0].teams.away.id;
                 url = `${BASE_URL}/fixtures/headtohead?h2h=${hID}-${aID}&last=10`;
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("H2H lookup failed:", e.message); }
     }
 
     if (!url) return res.json({ response: [] });
 
-    // C. FETCH & TRANSFORM (Get data and clean it up)
+    console.log(`📡 Fetching from API: ${url}`);
+
     try {
         const response = await axios.get(url, { headers: { 'x-apisports-key': API_KEY } });
         const items = response.data.response || [];
         
+        console.log(`✅ API Success. Found ${items.length} items.`);
+
+        // --- TRANSFORM DATA ---
         let output = { response: [] };
         
         if (type === 'scorers') {
@@ -107,27 +111,27 @@ app.get('/football-proxy', async (req, res) => {
             }
         }
 
-        // D. SAVE TO CACHE & SEND RESPONSE
+        // Save to cache
         fs.writeFileSync(cacheFile, JSON.stringify(output));
         res.json(output);
 
     } catch (error) {
-        console.error(error);
+        console.error("❌ API Error:", error.message);
         res.status(500).json({ error: 'Failed' });
     }
 });
 
-// --- 3. SERVE REACT APP (The Monolith Part) ---
-// This tells Express to look inside the 'dist' folder for static files (CSS, JS, Images)
+// --- 2. SERVE REACT FRONTEND ---
+// This tells Express to look inside the 'dist' folder for static files
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// This is the "Catch-All" route.
-// If a user goes to "your-site.com/dashboard" directly, the server won't find a file named "dashboard".
-// Instead, it sends "index.html" and lets React handle the routing.
+// --- 3. CATCH-ALL ROUTE (The Nuclear Regex Fix) ---
+// This regex /(.*)/ blindly accepts any URL and sends index.html
+// This bypasses the Render/Express version conflict completely.
 app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// --- 4. START SERVER ---
+
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
