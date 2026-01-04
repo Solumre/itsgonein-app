@@ -38,7 +38,7 @@ app.get('/football-proxy', async (req, res) => {
                 console.log(`✅ Found Teams: Home(${hID}) vs Away(${aID})`);
                 
                 // Fetch last 20 matches to ensure we have data
-                url = `${BASE_URL}/fixtures/headtohead?h2h=${hID}-${aID}&last=20`;
+                url = `${BASE_URL}/fixtures/headtohead?h2h=${hID}-${aID}&last=50`;
             } else {
                 console.log("❌ Match ID not found in API");
             }

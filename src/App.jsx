@@ -226,7 +226,7 @@ const openMatchCenter = async (fixture) => {
       },
       viewType: 'loading', 
       history: [],
-      stats: { homeWinPerc: 0, drawPerc: 0, awayWinPerc: 0 } // Prevent crash before load
+      stats: { homeWinPerc: 0, drawPerc: 0, awayWinPerc: 0 } 
     });
 
     try {
@@ -242,40 +242,14 @@ const openMatchCenter = async (fixture) => {
 
       if (json.response) {
         
-        // --- NEW: CALCULATE DOMINANCE STATS ---
-        let calculatedStats = { homeWinPerc: 33, drawPerc: 34, awayWinPerc: 33 }; // Fallback defaults
-
-        if (fetchType === 'h2h' && json.response.history && json.response.history.length > 0) {
-            let hWins = 0, draws = 0, aWins = 0, total = 0;
-            
-            json.response.history.forEach(match => {
-                // Regex to find the score "2-1" hidden inside the string "Arsenal 2-1 Chelsea"
-                const scoreMatch = match.score.match(/(\d+)-(\d+)/);
-                if (scoreMatch) {
-                    total++;
-                    const homeGoals = parseInt(scoreMatch[1]);
-                    const awayGoals = parseInt(scoreMatch[2]);
-                    
-                    if (homeGoals > awayGoals) hWins++;
-                    else if (awayGoals > homeGoals) aWins++;
-                    else draws++;
-                }
-            });
-
-            if (total > 0) {
-                calculatedStats = {
-                    homeWinPerc: Math.round((hWins / total) * 100),
-                    drawPerc: Math.round((draws / total) * 100),
-                    awayWinPerc: Math.round((aWins / total) * 100)
-                };
-            }
-        }
-        // --------------------------------------
+        // 🚨 FIX: TRUST THE SERVER STATS
+        // If the server sends 'stats', use them. Otherwise default to 33/34/33.
+        const finalStats = json.response.stats || { homeWinPerc: 33, drawPerc: 34, awayWinPerc: 33 };
 
         setMatchDetails(prev => ({
           ...prev,
-          ...json.response,
-          stats: calculatedStats, // Inject the stats we just calculated
+          ...json.response, // This merges 'history' from server
+          stats: finalStats, // This uses the SERVER'S math
           viewType: fetchType,
           match: {
              ...prev.match,
@@ -461,19 +435,19 @@ const openMatchCenter = async (fixture) => {
                                {matchDetails.viewType === 'h2h' ? (
                                  <div className="h2h-container">
                                    {matchDetails.stats && (
-                                     <div className="dominance-meter">
-                                       <div className="meter-bar">
-                                         <div className="segment home" style={{ width: `${matchDetails.stats.homeWinPerc}%` }}></div>
-                                         <div className="segment draw" style={{ width: `${matchDetails.stats.drawPerc}%` }}></div>
-                                         <div className="segment away" style={{ width: `${matchDetails.stats.awayWinPerc}%` }}></div>
-                                       </div>
-                                       <div className="meter-labels">
-                                         <span>Win {matchDetails.stats.homeWinPerc}%</span>
-                                         <span>Draw {matchDetails.stats.drawPerc}%</span>
-                                         <span>Win {matchDetails.stats.awayWinPerc}%</span>
-                                       </div>
-                                     </div>
-                                   )}
+                                 <div className="dominance-meter">
+    <div className="meter-bar">
+      <div className="segment home" style={{ width: `${matchDetails.stats.homeWinPerc}%` }}></div>
+      <div className="segment draw" style={{ width: `${matchDetails.stats.drawPerc}%` }}></div>
+      <div className="segment away" style={{ width: `${matchDetails.stats.awayWinPerc}%` }}></div>
+    </div>
+    <div className="meter-labels">
+      <span>Win {matchDetails.stats.homeWinPerc}%</span>
+      <span>Draw {matchDetails.stats.drawPerc}%</span>
+      <span>Win {matchDetails.stats.awayWinPerc}%</span>
+    </div>
+  </div>
+)}
                         
 <div className="h2h-history">
   <h4 className="section-title">PREVIOUS ENCOUNTERS</h4>
