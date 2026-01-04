@@ -82,6 +82,37 @@ body {
 .tab-btn.active { color: white; border-bottom-color: var(--accent); }
 .feed-content { padding: 30px 40px; overflow-y: auto; flex: 1; }
 
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.leaderboard-item .rank {
+  color: var(--accent);
+  font-weight: 800;
+  width: 30px;
+}
+
+.leaderboard-item .player-name {
+  flex: 1;
+}
+
+.leaderboard-item .points {
+  font-weight: bold;
+  opacity: 0.9;
+}
 /* --- MATCH CENTER & H2H OVERHAUL --- */
 .match-center { 
   background: #18181b; 
@@ -117,7 +148,201 @@ body {
   gap: 8px;
 }
 .close-center:hover { color: white; transform: translateX(-5px); }
+/* --- ADMIN PANEL STYLES --- */
+.admin-panel {
+  padding: 20px;
+  animation: fadeIn 0.4s ease-out;
+}
 
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 25px;
+  margin-top: 20px;
+}
+
+.admin-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.admin-card h3 {
+  color: var(--accent); /* Matches your league-specific accent color */
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+}
+
+.admin-form .form-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.admin-form input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.admin-form input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.admin-btn {
+  width: 100%;
+  background: var(--accent);
+  color: black;
+  font-weight: 800;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+  text-transform: uppercase;
+}
+
+.admin-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.ban-btn {
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.ban-btn:hover {
+  background: #cc0000;
+}
+.broadcast-text {
+  color: #ffcc00;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin-right: 50px;
+  background: rgba(255, 204, 0, 0.1);
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+/* Sidebar Admin Indicator */
+.nav-item.admin-link {
+  color: #ffcc00;
+  border-left: 3px solid #ffcc00;
+}
+
+.match-comments-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.match-comments-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.m-comment {
+  display: flex;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.m-comment img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.m-comment-user {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.m-comment-body p {
+  font-size: 0.85rem;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.match-comment-form {
+  display: flex;
+  gap: 10px;
+}
+
+.match-comment-form input {
+  flex: 1;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  padding: 10px;
+  border-radius: 6px;
+}
+/* Update your root variables to support the toggle */
+:root[data-theme='dark'] {
+  --bg-main: #0a0a0a;
+  --bg-card: rgba(255, 255, 255, 0.05);
+  --text-main: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme='light'] {
+  --bg-main: #f5f7f8;
+  --bg-card: #ffffff;
+  --text-main: #1a1a1a;
+  --border: rgba(0, 0, 0, 0.1);
+}
+
+/* Apply variables to the main container */
+.app-container {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  transition: background-color 0.3s ease;
+}
+
+/* Ensure cards and tables adapt */
+.admin-card, .widget-box, .modern-table {
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+}
 /* VS AREA */
 .center-content { padding: 30px; }
 
