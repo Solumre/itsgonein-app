@@ -628,30 +628,45 @@ const handleDeleteMessage = async (msgId) => {
           </div>
         </div>
 
-        {/* SECTION 6: MATCH ID FINDER */}
+ {/* SECTION 6: MATCH ID FINDER - NESTED INSIDE GRID */}
         <div className="admin-card">
-          <h3>Match ID Finder</h3>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+            <h3>Match ID Finder</h3>
+            <button 
+              className="ban-btn" 
+              style={{background: 'var(--primary)', fontSize: '10px'}}
+              onClick={() => {
+                const allIds = fixturesData.map(f => `${f.home} vs ${f.away}: ${f.id}`).join('\n');
+                navigator.clipboard.writeText(allIds);
+                alert('All IDs copied to clipboard!');
+              }}
+            >
+              Copy All IDs
+            </button>
+          </div>
           <p style={{fontSize: '0.7rem', opacity: 0.6, marginBottom: '10px'}}>
-            Use these IDs to settle predictions below.
+            Use these IDs to settle predictions. Click an individual ID to copy just the number.
           </p>
-          <div className="admin-list match-id-list" style={{maxHeight: '200px', overflowY: 'auto'}}>
+          <div className="admin-list match-id-list">
             {fixturesData.map(f => (
               <div key={f.id} className="admin-list-item" style={{fontSize: '0.8rem', padding: '8px'}}>
                 <div style={{flex: 1}}>
                   <strong>{f.home} vs {f.away}</strong>
                   <div style={{opacity: 0.7}}>{f.date} @ {f.time}</div>
                 </div>
-                <code style={{background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer'}} 
-                      onClick={() => {navigator.clipboard.writeText(f.id); alert('ID Copied!');}}>
+                <code 
+                  style={{background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', cursor: 'pointer'}} 
+                  onClick={() => {navigator.clipboard.writeText(f.id); alert('ID Copied!');}}
+                >
                   {f.id}
                 </code>
               </div>
             ))}
           </div>
         </div>
-      </div> {/* End admin-grid */}
-    </div> 
-  )}
+      </div> {/* Closes admin-grid */}
+    </div>   /* Closes admin-panel */
+  )}   
 
   {/* VIEW 2: DASHBOARD */}
   {currentView === 'DASHBOARD' && (
@@ -877,15 +892,24 @@ const handleDeleteMessage = async (msgId) => {
               })}
             </div>
           </div>
-      <div className="widget-box news-box">
+   <div className="widget-box news-box">
   <h3>LATEST DROPS</h3>
   {newsData.map(n => (
-    <div key={n.id} className="news-item">
+    <div key={n.id} className="news-item" style={{position: 'relative'}}>
       <div className="news-icon">{n.img}</div>
       <div className="news-content">
         <span className={`tag ${n.tag}`}>{n.tag}</span>
         <p>{n.title}</p>
       </div>
+      {/* QUICK DELETE FOR ADMIN ONLY */}
+      {user?.email === ADMIN_EMAIL && (
+        <button 
+          onClick={async () => await deleteDoc(doc(db, "news", n.id))}
+          style={{position: 'absolute', right: 0, top: 0, background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '12px'}}
+        >
+          ✕
+        </button>
+      )}
     </div>
   ))}
 </div>
