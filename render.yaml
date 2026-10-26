@@ -1,0 +1,20 @@
+# Render blueprint: one web service serves the API and the built app.
+services:
+  - type: web
+    name: itsgonein-app
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: FOOTBALL_DATA_KEY
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false
+      - key: ADMIN_EMAILS
+        value: tm@solumre.com
+      - key: VITE_ADMIN_EMAILS
+        value: tm@solumre.com
