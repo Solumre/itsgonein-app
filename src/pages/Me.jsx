@@ -12,6 +12,7 @@ import ClubPicker from '../components/ClubPicker';
 import ParentCard from '../components/ParentCard';
 import { Segmented } from '../components/Bits';
 import { ReminderSwitch } from '../components/Reminders';
+import TrophyCabinet from '../components/Trophies';
 
 function EditProfile({ profile, onDone }) {
   const { setPreviewClub } = useSession();
@@ -94,6 +95,8 @@ export default function Me() {
           </div>
         </section>
       )}
+
+      <TrophyCabinet />
 
       <section>
         <h2 className="section-title">Badges <small>{earned.size}/{BADGES.length}</small></h2>

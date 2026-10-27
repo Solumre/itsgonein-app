@@ -40,7 +40,7 @@ function Table({ board, me, code }) {
               <Avatar user={r} size={34} />
               <span className="who">
                 <strong>{r.nickname}</strong>
-                <small>{r.club?.name || 'Neutral'} · LV {r.level}{r.streak >= 3 ? ` · ${r.streak}🔥` : ''}</small>
+                <small>{r.club?.name || 'Neutral'} · LV {r.level}{r.streak >= 3 ? ` · ${r.streak}🔥` : ''}{r.trophies ? ` · 🏆${r.trophies}` : ''}</small>
               </span>
               {r.live > 0 && <span className="live-delta">+{r.live}</span>}
               {r.uid !== me && <ChallengeButton opponent={r} league={code} competition={board.competition} />}
