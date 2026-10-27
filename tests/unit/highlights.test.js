@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFeed, findHighlight, videoIdFrom, teamNames } from '../../server/highlights.js';
+import { parseFeed, findHighlight, findPreview, channelsFor, videoIdFrom, teamNames } from '../../server/highlights.js';
 
 const t = (name, tla) => ({ name, tla });
 const match = { id: '1', kickoff: '2026-10-31T12:30:00Z', status: 'finished', home: t('Chelsea', 'CHE'), away: t('Man United', 'MUN'), score: { home: 0, away: 1 } };
@@ -51,5 +51,27 @@ describe('videoIdFrom', () => {
       expect(videoIdFrom(url)).toBe('dQw4w9WgXcQ');
     }
     expect(videoIdFrom('https://example.com/video')).toBeNull();
+  });
+});
+
+describe('findPreview', () => {
+  it('picks a preview naming both teams from the days before kickoff', () => {
+    const got = findPreview(match, [
+      v('Chelsea v Man Utd | Premier League Preview', -30, 'preview0001'),
+      v('Chelsea v Man Utd | Match Preview', -6 * 24, 'tooearly001'),
+      v('Chelsea 0-1 Man Utd | Highlights', 3, 'highlights1'),
+      v('Arsenal v Spurs preview', -10, 'othergame01'),
+      v('Chelsea v Man Utd LIVE watchalong', -1, 'watchalong1'),
+    ]);
+    expect(got.videoId).toBe('preview0001');
+    expect(findPreview(match, [v('Chelsea v Man Utd | Highlights', -2)])).toBeNull(); // not a preview
+  });
+});
+
+describe('channelsFor', () => {
+  it('uses channels tagged for the competition, or tagged for none', () => {
+    const chs = [{ id: 'a', competitions: ['PL'] }, { id: 'b', competitions: ['CL'] }, { id: 'c', competitions: [] }, { id: 'd' }];
+    expect(channelsFor(chs, 'PL').map((c) => c.id)).toEqual(['a', 'c', 'd']);
+    expect(channelsFor(chs, 'PD').map((c) => c.id)).toEqual(['c', 'd']);
   });
 });

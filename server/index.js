@@ -15,7 +15,7 @@ import { listTrophies } from './trophies.js';
 import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion } from './quiz.js';
 import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
-import { findHighlights, getHighlight, latestHighlights, getChannels, setChannels, resolveChannel, saveHighlight, videoIdFrom } from './highlights.js';
+import { findHighlights, getHighlight, getPreview, searchFor, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
 import { scorePick, validDoubles, AVATARS, GAMES } from '../src/lib/game.js';
@@ -105,6 +105,16 @@ app.get('/api/scorers', wrap(async (req, res) => {
 
 // Match centre: the match (with goals, cards and line-ups when the data plan has them),
 // head-to-head and form, plus your pick and your league mates' picks once it kicks off.
+// A game's saved video, or a quick search for one (given 4 seconds; it carries on and is
+// saved for next time if it takes longer).
+async function videoFor(kind, m) {
+  const get = kind === 'highlight' ? getHighlight : getPreview;
+  const saved = await get(m.id).catch(() => null);
+  if (saved) return saved;
+  const found = await Promise.race([searchFor(m), new Promise((r) => { setTimeout(() => r(null), 4000).unref?.(); })]);
+  return found ? get(m.id).catch(() => null) : null;
+}
+
 app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
   const id = String(req.params.id);
   // Past meetings can be from cups we don't list; those are looked up by id alone below.
@@ -115,7 +125,7 @@ app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
     // Not in this season's fixtures: an older game, e.g. a past head-to-head meeting.
     const old = await getMatchDetail(id, null).catch(() => null);
     if (!old) fail(404, 'Match not found.');
-    const [h2h, highlight] = await Promise.all([getHead2Head(id).catch(() => null), getHighlight(id).catch(() => null)]);
+    const [h2h, highlight] = await Promise.all([getHead2Head(id).catch(() => null), videoFor('highlight', old)]);
     res.set('Cache-Control', 'public, max-age=3600');
     return res.json({ match: old, h2h, form: null, mine: null, mates: null, past: true, highlight });
   }
@@ -123,8 +133,9 @@ app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
     getMatchDetail(id, comp).catch(() => null),
     getHead2Head(id).catch(() => null),
     getStandings(comp).catch(() => null),
-    base.status === 'finished' ? getHighlight(id).catch(() => null) : null,
+    base.status === 'finished' ? videoFor('highlight', base) : null,
   ]);
+  const preview = base.status === 'upcoming' ? await videoFor('preview', base) : null;
   // The fixtures feed can be fresher than a cached detail; keep the newer score and status.
   const match = detail ? { ...detail, status: base.status, minute: base.minute ?? detail.minute, paused: base.paused, score: base.score } : { ...base, events: [], lineups: null };
   const row = (teamId) => standings?.flatMap((s) => s.table).find((r) => r.team.id === teamId) || null;
@@ -164,7 +175,7 @@ app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
     live = await liveFor(req.user.uid, match, memberIds, people);
   }
   res.set('Cache-Control', req.user ? 'no-store' : 'public, max-age=15');
-  res.json({ match, h2h, form, mine, mates, highlight, live });
+  res.json({ match, h2h, form, mine, mates, highlight, preview, live });
 }));
 
 // Live picks for the match centre: open questions with your answer, how league mates
@@ -278,9 +289,10 @@ app.post('/api/match/:id/live', requireUser, wrap(async (req, res) => {
 }));
 
 // Latest match highlights, newest game first.
-app.get('/api/highlights', wrap(async (_req, res) => {
+app.get('/api/highlights', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
-  res.json({ highlights: await latestHighlights(10) });
+  const c = String(req.query.competition || '').toUpperCase();
+  res.json({ highlights: await latestHighlights(10, isCompetition(c) ? c : null) });
 }));
 
 // Clubs to pick from: Premier League and Championship.
@@ -827,14 +839,17 @@ app.post('/api/admin/sync', requireUser, requireAdmin, wrap(async (_req, res) =>
 
 // Highlights: which YouTube channels to watch, and setting a match's video by hand.
 app.get('/api/admin/highlights', requireUser, requireAdmin, wrap(async (_req, res) => {
-  res.json({ channels: await getChannels(), recent: await latestHighlights(15) });
+  res.json({ channels: await getChannels(), recent: await latestHighlights(15), quota: await quotaToday() });
 }));
 
 app.post('/api/admin/highlights/channels', requireUser, requireAdmin, wrap(async (req, res) => {
   let channels = await getChannels();
+  const comps = (list) => (Array.isArray(list) ? list.map((c) => String(c).toUpperCase()).filter(isCompetition) : []);
   if (req.body?.remove) channels = channels.filter((c) => c.id !== req.body.remove);
+  if (req.body?.update) channels = channels.map((c) => (c.id === req.body.update ? { ...c, competitions: comps(req.body.competitions) } : c));
   if (req.body?.add) {
-    const ch = await resolveChannel(req.body.add).catch(() => null);
+    const resolved = await resolveChannel(req.body.add).catch(() => null);
+    const ch = resolved && { ...resolved, competitions: comps(req.body.competitions) };
     if (!ch) fail(400, 'Couldn\'t find that channel. Paste its link (youtube.com/@name or /channel/UC...).');
     if (channels.some((c) => c.id === ch.id)) fail(409, 'Already on the list.');
     if (channels.length >= 10) fail(400, 'That\'s plenty of channels.');
@@ -846,15 +861,16 @@ app.post('/api/admin/highlights/channels', requireUser, requireAdmin, wrap(async
 
 app.post('/api/admin/highlights/match', requireUser, requireAdmin, wrap(async (req, res) => {
   const comp = String(req.body?.competition || '').toUpperCase();
+  const kind = req.body?.kind === 'preview' ? 'preview' : 'highlight';
   const m = isCompetition(comp) && (await getMatches(comp)).find((x) => x.id === String(req.body?.matchId || ''));
   if (!m) fail(404, 'Match not found.');
   if (!req.body?.url) {
-    await saveHighlight(m, { videoId: null, hidden: true, auto: false });
+    await saveVideo(kind, m, { videoId: null, hidden: true, auto: false });
     return res.json({ ok: true, hidden: true });
   }
   const videoId = videoIdFrom(req.body.url);
   if (!videoId) fail(400, 'That doesn\'t look like a YouTube link.');
-  await saveHighlight(m, { videoId, title: `${m.home.name} v ${m.away.name}`, channel: null, published: new Date().toISOString(), auto: false });
+  await saveVideo(kind, m, { videoId, title: `${m.home.name} v ${m.away.name}${kind === 'preview' ? ' preview' : ''}`, channel: null, published: new Date().toISOString(), auto: false });
   res.json({ ok: true, videoId });
 }));
 
