@@ -112,7 +112,7 @@ export default function HighlightsAdmin({ run }) {
               return (
                 <div key={v.videoId} className={`yt-result${v.videoId === results.best ? ' best' : ''}`}>
                   <a href={`https://www.youtube.com/watch?v=${v.videoId}`} target="_blank" rel="noreferrer"><img src={thumb(v.videoId)} alt="" loading="lazy" /></a>
-                  <span className="who"><strong>{v.title}</strong><small>{v.channel} · {dayLabel(v.published)}{v.videoId === results.best ? ' · would be picked automatically' : ''}</small></span>
+                  <span className="who"><strong>{v.title}</strong><small>{v.channel} · {dayLabel(v.published)}{v.watchable === false ? ' · 🚫 blocked in the UK or can\'t be embedded' : ''}{v.videoId === results.best ? ' · would be picked automatically' : ''}</small></span>
                   <span className="yt-actions">
                     <button type="button" className="btn btn-sm" onClick={() => use(v)}>Use</button>
                     {!approved && v.channelId && <button type="button" className="btn btn-ghost btn-sm" onClick={() => addChannel(v)}>+ Add channel</button>}
