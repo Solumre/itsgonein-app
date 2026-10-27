@@ -850,6 +850,7 @@ app.post('/api/admin/highlights/channels', requireUser, requireAdmin, wrap(async
   if (req.body?.update) channels = channels.map((c) => (c.id === req.body.update ? { ...c, competitions: comps(req.body.competitions) } : c));
   if (req.body?.add) {
     const resolved = await resolveChannel(req.body.add).catch(() => null);
+    if (resolved && req.body.name) resolved.name = String(req.body.name).slice(0, 80);
     const ch = resolved && { ...resolved, competitions: comps(req.body.competitions) };
     if (!ch) fail(400, 'Couldn\'t find that channel. Paste its link (youtube.com/@name or /channel/UC...).');
     if (channels.some((c) => c.id === ch.id)) fail(409, 'Already on the list.');
@@ -881,7 +882,7 @@ app.post('/api/admin/highlights/search', requireUser, requireAdmin, wrap(async (
   const comp = String(req.body?.competition || '').toUpperCase();
   const m = isCompetition(comp) && (await getMatches(comp)).find((x) => x.id === String(req.body?.matchId || ''));
   if (!m) fail(404, 'Match not found.');
-  res.json(await searchCandidates(m, req.body?.kind === 'preview' ? 'preview' : 'highlight'));
+  res.json(await searchCandidates(m, req.body?.kind === 'preview' ? 'preview' : 'highlight', { anywhere: !!req.body?.anywhere }));
 }));
 
 app.post('/api/admin/highlights/find', requireUser, requireAdmin, wrap(async (_req, res) => {

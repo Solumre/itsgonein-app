@@ -160,3 +160,14 @@ describe('wrong picks', () => {
     expect(h.title).toContain('Highlights');
   });
 });
+
+describe('finding a channel', () => {
+  it('searches all of YouTube and adds a result\'s channel for the league', async () => {
+    const game = pl.filter((m) => m.status === 'finished').at(-6);
+    const r = await call(admin, 'POST', '/api/admin/highlights/search', { competition: 'PL', matchId: game.id, anywhere: true });
+    const v = r.body.candidates[0];
+    expect(v).toMatchObject({ channel: 'Mock Sports', channelId: 'UCmockmockmockmockmockmo' });
+    const add = await call(admin, 'POST', '/api/admin/highlights/channels', { add: v.channelId, name: v.channel, competitions: ['CL'] });
+    expect(add.body.channels.at(-1)).toEqual({ id: 'UCmockmockmockmockmockmo', name: 'Mock Sports', competitions: ['CL'] });
+  });
+});

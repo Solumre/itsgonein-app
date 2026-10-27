@@ -92,6 +92,13 @@ export function teamNames(t) {
   }
   return [...names].filter((n) => n.length >= 3 || /^(om|usg|bvb)$/.test(n));
 }
+// The name to put in a search: how titles usually write the club.
+export function searchName(t) {
+  const joined = [t.name, t.full].filter(Boolean).map((n) => norm(n).trim()).join(' | ');
+  for (const [re, al] of EURO) if (re.test(joined)) return al.find((a) => a.length > 4) || al[0];
+  const tla = ALIASES[t.tla];
+  return tla ? tla[tla.length - 1] : fold(t.name);
+}
 const mentions = (title, team) => teamNames(team).some((n) => title.includes(norm(n)));
 
 // Channels that cover a competition (a channel with no competitions covers them all).
@@ -161,12 +168,15 @@ export async function scanUploads(known, fetchPage, { since, maxPages = 300 }) {
   while (pages < maxPages) {
     const page = await fetchPage(token);
     pages++;
-    let stop = false;
+    // The list isn't strictly in date order (premieres, re-uploads), so one old video doesn't
+    // end it: stop at a video already seen, or when a whole page is older than `since`.
+    let seenKnown = false;
     for (const v of page.items) {
-      if (have.has(v.videoId) || new Date(v.published) < since) { stop = true; break; }
-      out.push(v);
+      if (have.has(v.videoId)) { seenKnown = true; continue; }
+      if (new Date(v.added || v.published) >= since) out.push(v);
     }
-    if (stop || !page.next) break;
+    const allOld = page.items.length > 0 && page.items.every((v) => new Date(v.added || v.published) < since);
+    if (seenKnown || allOld || !page.next) break;
     token = page.next;
   }
   return { videos: out, pages };
@@ -185,6 +195,7 @@ async function playlistPage(channelId, token) {
     items: (j.items || []).map((it) => ({
       videoId: it.contentDetails?.videoId, title: decode(it.snippet?.title || ''),
       published: it.contentDetails?.videoPublishedAt || it.snippet?.publishedAt,
+      added: it.snippet?.publishedAt, // when it went on the channel's list
     })).filter((v) => v.videoId && v.published && !/^(private|deleted) video$/i.test(v.title)),
   };
 }
@@ -235,15 +246,25 @@ export async function setChannels(channels) {
   feedCache.clear();
 }
 
-// Turn a channel link, @handle or id into { id, name }.
+// Turn a channel link, @handle or id into { id, name }. With an API key, YouTube's own
+// lookup of the handle (1 quota unit); otherwise the channel page's canonical link. (The
+// first channel id on the page can belong to another, featured channel.)
 export async function resolveChannel(input) {
   const s = String(input || '').trim();
   const direct = s.match(/(UC[\w-]{22})/);
   if (direct) return { id: direct[1], name: s.includes('/') ? direct[1] : s };
   const handle = s.match(/@([\w.-]+)/)?.[1] || (/^[\w.-]+$/.test(s) ? s : null);
   if (!handle || MOCK) return null;
+  if (API_KEY && (await spend(1))) {
+    const url = new URL('https://www.googleapis.com/youtube/v3/channels');
+    Object.entries({ part: 'snippet', forHandle: `@${handle}`, key: API_KEY }).forEach(([k, v]) => url.searchParams.set(k, v));
+    const r = await fetch(url);
+    const ch = r.ok ? (await r.json()).items?.[0] : null;
+    if (ch?.id) return { id: ch.id, name: decode(ch.snippet?.title || `@${handle}`) };
+  }
   const html = await fetch(`https://www.youtube.com/@${handle}`, { headers: { 'accept-language': 'en-GB' } }).then((r) => (r.ok ? r.text() : ''));
-  const id = html.match(/"(?:channelId|externalId)":"(UC[\w-]{22})"/)?.[1];
+  const id = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/)?.[1]
+    || html.match(/"externalId":"(UC[\w-]{22})"/)?.[1];
   const name = decode(html.match(/<meta property="og:title" content="([^"]+)"/)?.[1] || `@${handle}`);
   return id ? { id, name } : null;
 }
@@ -294,7 +315,11 @@ export async function findHighlights({ matches, force = false }) {
     for (const ch of channelsFor(channels, m.competition)) {
       if (!lists.has(ch.id)) {
         lists.set(ch.id, await channelVideos(ch, since, matches)
-          .then((vs) => { status.set(ch.id, { videos: vs.length, at: Date.now(), error: null }); return vs; })
+          .then((vs) => {
+            const oldest = vs.reduce((o, v) => (v.published < o ? v.published : o), vs[0]?.published || null);
+            status.set(ch.id, { videos: vs.length, oldest, at: Date.now(), error: null });
+            return vs;
+          })
           .catch((e) => { console.error('highlights: channel failed:', e.message); status.set(ch.id, { videos: 0, at: Date.now(), error: e.message.slice(0, 200) }); return []; }));
       }
       videos.push(...lists.get(ch.id).map((v) => ({ ...v, channel: ch.name })));
@@ -333,29 +358,37 @@ export async function quotaToday() {
 }
 
 async function searchChannel(channelId, q, after, before) {
-  if (MOCK) return null; // the mock search is done in searchFor
+  if (MOCK) return null; // the mock search is done by the callers
   const url = new URL('https://www.googleapis.com/youtube/v3/search');
-  Object.entries({ part: 'snippet', type: 'video', maxResults: '15', order: 'relevance', channelId, q, publishedAfter: after, publishedBefore: before, key: API_KEY })
+  Object.entries({ part: 'snippet', type: 'video', maxResults: '15', order: 'relevance', q, publishedAfter: after, publishedBefore: before, key: API_KEY, ...(channelId && { channelId }) })
     .forEach(([k, v]) => url.searchParams.set(k, v));
   const r = await fetch(url);
   if (!r.ok) throw new Error(`YouTube search ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  return ((await r.json()).items || []).map((it) => ({ videoId: it.id?.videoId, title: decode(it.snippet?.title || ''), published: it.snippet?.publishedAt })).filter((v) => v.videoId);
+  return ((await r.json()).items || []).map((it) => ({
+    videoId: it.id?.videoId, title: decode(it.snippet?.title || ''), published: it.snippet?.publishedAt,
+    channel: decode(it.snippet?.channelTitle || ''), channelId: it.snippet?.channelId,
+  })).filter((v) => v.videoId);
 }
 
 // For the admin page: everything the game's channels return for it (a wider window, no
 // filtering), marking the one the automatic matching would pick. Always searches.
-export async function searchCandidates(m, kind) {
+export async function searchCandidates(m, kind, { anywhere = false } = {}) {
   if (!API_KEY && !MOCK) throw Object.assign(new Error('Add YOUTUBE_API_KEY on Render first.'), { status: 400, expose: true });
   const ko = new Date(m.kickoff).getTime();
   const [after, before] = kind === 'preview' ? [ko - 6 * 86400_000, ko] : [ko - 3600_000, ko + 7 * 86400_000];
-  const q = `${m.home.name} ${m.away.name}`;
+  const q = `${searchName(m.home)} ${searchName(m.away)}${anywhere ? (kind === 'preview' ? ' preview' : ' highlights') : ''}`;
   const videos = [];
   const errors = [];
-  for (const ch of channelsFor(await getChannels(), m.competition)) {
+  // All of YouTube (for the admin to find which channel has a league's videos), or the
+  // approved channels for the game's league.
+  const sources = anywhere ? [{ id: null, name: null }] : channelsFor(await getChannels(), m.competition);
+  for (const ch of sources) {
     if (!(await spend(SEARCH_COST))) { errors.push('Today\'s search budget is used up.'); break; }
     try {
-      const found = MOCK ? mockVideos([{ ...m, status: kind === 'preview' ? 'upcoming' : 'finished', score: m.score || { home: 0, away: 0 } }]) : await searchChannel(ch.id, q, new Date(after).toISOString(), new Date(Math.min(before, Date.now())).toISOString());
-      videos.push(...found.map((v) => ({ ...v, channel: ch.name })));
+      const found = MOCK
+        ? mockVideos([{ ...m, status: kind === 'preview' ? 'upcoming' : 'finished', score: m.score || { home: 0, away: 0 } }]).map((v) => ({ ...v, channel: ch.name || 'Mock Sports', channelId: ch.id || 'UCmockmockmockmockmockmo' }))
+        : await searchChannel(ch.id, q, new Date(after).toISOString(), new Date(Math.min(before, Date.now())).toISOString());
+      videos.push(...found.map((v) => ({ ...v, channel: ch.name || v.channel, channelId: ch.id || v.channelId })));
     } catch (e) {
       errors.push(`${ch.name}: ${e.message}`);
     }
@@ -394,7 +427,7 @@ export async function searchFor(m, { now = Date.now() } = {}) {
     }
     if (cur?.searchedAt && now - cur.searchedAt < (kind === 'preview' ? 6 : 12) * 3600_000) return null;
     const [after, before] = kind === 'highlight' ? [ko, ko + 4 * 86400_000] : [ko - 4 * 86400_000, Math.min(ko, now)];
-    const q = `${m.home.name} ${m.away.name} ${kind === 'highlight' ? 'highlights' : 'preview'}`;
+    const q = `${searchName(m.home)} ${searchName(m.away)} ${kind === 'highlight' ? 'highlights' : 'preview'}`;
     const videos = [];
     for (const ch of channels) {
       if (!(await spend(SEARCH_COST))) { console.warn('YouTube search budget spent for today'); break; }
