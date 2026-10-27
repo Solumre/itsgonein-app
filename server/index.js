@@ -12,6 +12,7 @@ import { syncNow, startSyncLoop, toGameMatch, gameMatches, recomputeUser, matche
 import { buildRecap, gameweekComplete } from './recap.js';
 import { createChallenge, respondChallenge, cancelChallenge, listChallenges, openRound } from './h2h.js';
 import { listTrophies } from './trophies.js';
+import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
 import { findHighlights, getHighlight, latestHighlights, getChannels, setChannels, resolveChannel, saveHighlight, videoIdFrom } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
@@ -127,7 +128,8 @@ app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
   const row = (teamId) => standings?.flatMap((s) => s.table).find((r) => r.team.id === teamId) || null;
   const form = { home: row(match.home.id), away: row(match.away.id) };
 
-  let mine = null, mates = null;
+  let mine = null, mates = null, live = null;
+  let memberIds = [], people = [];
   if (req.user && GAME_COMPETITIONS.includes(comp)) {
     const uid = req.user.uid;
     const pickRef = (u) => db.collection('predictions').doc(`${u}_${id}`);
@@ -136,9 +138,10 @@ app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
     const scoreNow = match.status === 'live' || match.status === 'finished';
     const pts = (p) => (p.points != null ? p.points : scoreNow ? scorePick(p, match.score, !!p.double) : null);
     if (myPick.exists) { const p = myPick.data(); mine = { home: p.home, away: p.away, double: !!p.double, points: pts(p) }; }
-    const memberIds = [...new Set((await leagues.where('members', 'array-contains', uid).get()).docs.flatMap((l) => l.data().members))].filter((u) => u !== uid);
+    memberIds = [...new Set((await leagues.where('members', 'array-contains', uid).get()).docs.flatMap((l) => l.data().members))].filter((u) => u !== uid);
     if (memberIds.length) {
-      const [picks, people] = await Promise.all([db.getAll(...memberIds.map(pickRef)), db.getAll(...memberIds.map((u) => users.doc(u)))]);
+      let picks;
+      [picks, people] = await Promise.all([db.getAll(...memberIds.map(pickRef)), db.getAll(...memberIds.map((u) => users.doc(u)))]);
       const pickBy = Object.fromEntries(picks.filter((d) => d.exists).map((d) => [d.data().uid, d.data()]));
       if (!started) {
         mates = { revealed: false, picked: Object.keys(pickBy).length, total: memberIds.length };
@@ -155,8 +158,41 @@ app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
       }
     }
   }
-  res.set('Cache-Control', 'private, max-age=15');
-  res.json({ match, h2h, form, mine, mates, highlight });
+  if (req.user && GAME_COMPETITIONS.includes(comp) && (match.status === 'live' || match.status === 'finished')) {
+    live = await liveFor(req.user.uid, match, memberIds, people);
+  }
+  res.set('Cache-Control', req.user ? 'no-store' : 'public, max-age=15');
+  res.json({ match, h2h, form, mine, mates, highlight, live });
+}));
+
+// Live picks for the match centre: open questions with your answer, how league mates
+// answered, and points so far in this game.
+async function liveFor(uid, match, memberIds, people) {
+  const all = await picksForMatch(match.id);
+  const mateSet = new Set(memberIds);
+  const who = Object.fromEntries(people.filter((d) => d.exists).map((d) => [d.id, { nickname: d.data().nickname, avatar: d.data().avatar }]));
+  const mineBy = Object.fromEntries(all.filter((p) => p.uid === uid).map((p) => [p.qid, p]));
+  const matesFor = (qid) => all.filter((p) => p.qid === qid && mateSet.has(p.uid) && who[p.uid]).map((p) => ({ ...who[p.uid], answer: p.answer }));
+  const open = openQuestions(match).map((q) => ({ ...q, mine: mineBy[q.id]?.answer || null, mates: matesFor(q.id) }));
+  const openIds = new Set(open.map((q) => q.id));
+  const history = Object.values(mineBy).filter((p) => !openIds.has(p.qid))
+    .map((p) => ({ qid: p.qid, kind: p.kind, answer: p.answer, result: p.result, points: p.points || 0 }))
+    .sort((a, b) => b.qid.localeCompare(a.qid));
+  const table = new Map();
+  for (const p of all) if ((p.uid === uid || (mateSet.has(p.uid) && who[p.uid]))) table.set(p.uid, (table.get(p.uid) || 0) + (p.points || 0));
+  const board = [...table.entries()].map(([u, points]) => ({ uid: u, me: u === uid, points, ...(who[u] || { nickname: 'You' }) }))
+    .sort((a, b) => b.points - a.points || (a.me ? -1 : b.me ? 1 : 0));
+  if (!open.length && !history.length) return null;
+  return { open, history, board, points: history.reduce((s, h) => s + h.points, 0) };
+}
+
+app.post('/api/match/:id/live', requireUser, wrap(async (req, res) => {
+  const comp = String(req.query.competition || req.body?.competition || '').toUpperCase();
+  if (!GAME_COMPETITIONS.includes(comp)) fail(400, 'Live picks are for Premier League and Champions League games.');
+  const match = (await getMatches(comp)).find((m) => m.id === String(req.params.id));
+  if (!match) fail(404, 'Match not found.');
+  await answerLive({ uid: req.user.uid, match, qid: String(req.body?.qid || ''), choice: String(req.body?.answer || '') });
+  res.json({ ok: true });
 }));
 
 // Latest match highlights, newest game first.

@@ -116,6 +116,7 @@ export function normalizeMatch(m, competition) {
     home: team(m.homeTeam),
     away: team(m.awayTeam),
     score: hasScore ? { home: ft.home, away: ft.away } : status === 'live' ? { home: 0, away: 0 } : null,
+    half: m.score?.halfTime?.home != null ? { home: m.score.halfTime.home, away: m.score.halfTime.away } : null,
   };
 }
 

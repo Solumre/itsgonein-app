@@ -10,6 +10,7 @@ import { settleChallenges } from './h2h.js';
 import { bonusForUser, bonusPlayers } from './bonus.js';
 import { awardMonthly, awardSeason } from './trophies.js';
 import { findHighlights } from './highlights.js';
+import { settleLive, liveTotal, LIVE_XP } from './live.js';
 
 const synced = new Map(); // matchId -> fingerprint of what Firestore holds
 let loaded = false;
@@ -103,6 +104,12 @@ async function runSync() {
   await flush();
 
   if (toSettle.length) await settle(toSettle, matches);
+  // Live picks score as soon as the answer is known, not just at full time.
+  const liveChanged = await settleLive(matches).catch((e) => { console.error('live picks', e); return []; });
+  if (liveChanged.length) {
+    const byComp = matchesByCompetition(matches);
+    for (const uid of liveChanged) await recomputeUser(uid, byComp);
+  }
   for (const m of toAnnounceKickoff) await announceKickoff(m).catch((e) => console.error('kickoff announce', e));
   for (const m of toAnnounceResult) await announceResult(m).catch((e) => console.error('result announce', e));
   await wrapGameweek(matches).catch((e) => console.error('gameweek wrap', e));
@@ -133,8 +140,10 @@ export async function recomputeUser(uid, byComp) {
   const bonus = await bonusForUser(uid, [...byComp.PL.values()]);
   const gwWithBonus = { ...pl.stats.gw };
   for (const [md, pts] of Object.entries(bonus.gw)) gwWithBonus[md] = (gwWithBonus[md] || 0) + pts;
-  const xp = pl.stats.xp + bonus.total * 10 + cl.stats.points * 10 + cl.stats.played * 2;
-  const stats = { ...pl.stats, points: pl.stats.points + bonus.total, gw: gwWithBonus, bonus: bonus.total, xp, level: levelFor(xp).level };
+  // Live picks earn XP only; they don't change league points.
+  const live = await liveTotal(uid);
+  const xp = pl.stats.xp + bonus.total * 10 + cl.stats.points * 10 + cl.stats.played * 2 + live * LIVE_XP;
+  const stats = { ...pl.stats, points: pl.stats.points + bonus.total, gw: gwWithBonus, bonus: bonus.total, live, xp, level: levelFor(xp).level };
   const { points, played, exact, results, streak, bestStreak, gw } = cl.stats;
   const statsCL = { points, played, exact, results, streak, bestStreak, gw };
   const perPick = { ...pl.perPick, ...cl.perPick };
