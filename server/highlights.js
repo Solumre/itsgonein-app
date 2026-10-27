@@ -214,6 +214,33 @@ async function searchChannel(channelId, q, after, before) {
   return ((await r.json()).items || []).map((it) => ({ videoId: it.id?.videoId, title: decode(it.snippet?.title || ''), published: it.snippet?.publishedAt })).filter((v) => v.videoId);
 }
 
+// For the admin page: everything the game's channels return for it (a wider window, no
+// filtering), marking the one the automatic matching would pick. Always searches.
+export async function searchCandidates(m, kind) {
+  if (!API_KEY && !MOCK) throw Object.assign(new Error('Add YOUTUBE_API_KEY on Render first.'), { status: 400, expose: true });
+  const ko = new Date(m.kickoff).getTime();
+  const [after, before] = kind === 'preview' ? [ko - 6 * 86400_000, ko] : [ko - 3600_000, ko + 7 * 86400_000];
+  const q = `${m.home.name} ${m.away.name}`;
+  const videos = [];
+  const errors = [];
+  for (const ch of channelsFor(await getChannels(), m.competition)) {
+    if (!(await spend(SEARCH_COST))) { errors.push('Today\'s search budget is used up.'); break; }
+    try {
+      const found = MOCK ? mockVideos([{ ...m, status: kind === 'preview' ? 'upcoming' : 'finished', score: m.score || { home: 0, away: 0 } }]) : await searchChannel(ch.id, q, new Date(after).toISOString(), new Date(Math.min(before, Date.now())).toISOString());
+      videos.push(...found.map((v) => ({ ...v, channel: ch.name })));
+    } catch (e) {
+      errors.push(`${ch.name}: ${e.message}`);
+    }
+  }
+  const best = (kind === 'preview' ? findPreview : findHighlight)(m, videos);
+  const seen = new Set();
+  return {
+    best: best?.videoId || null,
+    candidates: videos.filter((v) => !seen.has(v.videoId) && seen.add(v.videoId)),
+    errors,
+  };
+}
+
 const searching = new Map(); // one search per game at a time
 // Search the game's channels for its highlights (finished) or preview (next 4 days).
 // Remembers misses: highlights aren't searched again for 12 hours, previews for 6.
