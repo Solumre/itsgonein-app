@@ -15,13 +15,13 @@ const EVENT_ICON = { goal: '⚽', penalty: '⚽', own_goal: '⚽', yellow: '🟨
 const isLive = (d) => d?.match?.status === 'live'
   || (d?.match?.status === 'upcoming' && Math.abs(new Date(d.match.kickoff) - Date.now()) < 15 * 60_000);
 
-function Scoreboard({ m }) {
+function Scoreboard({ m, past }) {
   const live = m.status === 'live';
   return (
     <section className={`mc-hero${live ? ' is-live' : ''}`} style={{ '--home': clubColors(m.home)[0], '--away': clubColors(m.away)[0] }}>
       <div className="mc-meta">
         {live ? <span className="live-pill">{m.paused ? 'HALF TIME' : m.minute ? `${m.minute}'` : 'LIVE'}</span>
-          : m.status === 'finished' ? <span className="mc-ft">FULL TIME</span>
+          : m.status === 'finished' ? <span className="mc-ft">FULL TIME{past ? ` · ${new Date(m.kickoff).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</span>
             : m.status === 'postponed' ? <span className="mc-ft">POSTPONED</span>
               : <span className="mc-ft">{dayLabel(m.kickoff)} · {timeLabel(m.kickoff)}</span>}
       </div>
@@ -153,12 +153,12 @@ function FormAndHistory({ form, h2h, m }) {
           </div>
           <ul className="fixtures mc-past">
             {h2h.matches.map((x) => (
-              <li key={x.id} className="fixture">
+              <li key={x.id}><Link to={`/match/${x.id}?c=${x.competition || 'PL'}`} className="fixture">
                 <span className="fx-time">{new Date(x.kickoff).getFullYear()}</span>
                 <span className="fx-team home">{x.home.name}</span>
                 <span className="fx-score">{x.score ? `${x.score.home} – ${x.score.away}` : '–'}</span>
                 <span className="fx-team away">{x.away.name}</span>
-              </li>
+              </Link></li>
             ))}
           </ul>
         </>
@@ -172,26 +172,28 @@ export default function MatchCentre() {
   const [params] = useSearchParams();
   const competition = params.get('c') || 'PL';
   const { user } = useSession();
-  const { data, error, loading, reload } = useApi(`/api/match/${id}?competition=${competition}`, { refresh: 5 * 60_000, fastRefresh: 30_000, isLive });
+  const { data, error, reload } = useApi(`/api/match/${id}?competition=${competition}`, { refresh: 5 * 60_000, fastRefresh: 30_000, isLive });
   const toast = useToast();
   const [goalFx, setGoalFx] = useState(0);
-  const [seenTotal, setSeenTotal] = useState(null);
+  const [seen, setSeen] = useState({ id: null, total: null });
   const navigate = useNavigate();
   const now = useNow(30_000);
 
-  // A goal while you're watching: confetti and a shout.
-  const m = data?.match;
+  // While another match loads, the previous one's data is still here; don't show it.
+  const m = data?.match?.id === id ? data.match : null;
+  // A goal while you're watching: confetti and a shout. Only within the same match.
   const total = m?.score ? m.score.home + m.score.away : null;
-  if (total !== seenTotal) {
-    if (seenTotal != null && total != null && total > seenTotal) setGoalFx((n) => n + 1);
-    setSeenTotal(total);
+  if (m && (m.id !== seen.id || total !== seen.total)) {
+    if (m.id === seen.id && seen.total != null && total != null && total > seen.total) setGoalFx((n) => n + 1);
+    setSeen({ id: m.id, total });
   }
   useEffect(() => {
     if (goalFx) toast(`⚽ GOAL! ${m.home.tla} ${m.score.home}–${m.score.away} ${m.away.tla}`, 'good');
   }, [goalFx]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { window.scrollTo(0, 0); }, [id]);
 
-  if (loading && !data) return <Spinner />;
-  if (error && !data) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>;
+  if (error && !m) return <div className="page"><ErrorBox error={error} onRetry={reload} /></div>;
+  if (!m) return <Spinner />;
   const canPick = !!user && ['PL', 'CL'].includes(competition) && m.status === 'upcoming' && new Date(m.kickoff).getTime() > now;
 
   return (
@@ -200,8 +202,8 @@ export default function MatchCentre() {
       <button className="link-btn mc-back" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/live'))}>
         <ArrowLeft size={16} /> Back
       </button>
-      <Scoreboard m={m} />
-      {user && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} />}
+      <Scoreboard m={m} past={data.past} />
+      {user && !data.past && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} />}
       <Timeline events={m.events} m={m} />
       <Lineups lineups={m.lineups} m={m} />
       <FormAndHistory form={data.form} h2h={data.h2h} m={m} />

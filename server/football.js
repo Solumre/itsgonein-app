@@ -224,7 +224,7 @@ export function normalizeDetail(m, competition) {
 export async function getMatchDetail(id, competition) {
   return cached(`match:${id}`, (d) => (d.status === 'live' || (d.status === 'upcoming' && new Date(d.kickoff) - Date.now() < 15 * 60_000) ? LIVE_TTL : 10 * 60_000), async () => {
     const json = await get(`/matches/${id}`);
-    return normalizeDetail(json, competition || json.competition?.code);
+    return normalizeDetail(json, competition || json.competition?.code || null);
   });
 }
 
