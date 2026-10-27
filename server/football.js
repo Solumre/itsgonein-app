@@ -6,6 +6,11 @@ import { mockFeed } from './mock.js';
 const BASE = 'https://api.football-data.org/v4';
 const KEY = process.env.FOOTBALL_DATA_KEY;
 const MOCK = process.env.FOOTBALL_DATA_MOCK === '1';
+// Calls a minute to allow. The free plan allows 10, so the default leaves headroom;
+// set FOOTBALL_DATA_CALLS_PER_MIN a little under a paid plan's limit (e.g. 25 for 30).
+const CALLS_PER_MIN = Math.max(1, Number(process.env.FOOTBALL_DATA_CALLS_PER_MIN) || 8);
+// With room to spare, refresh live feeds twice as often.
+const LIVE_TTL = CALLS_PER_MIN >= 20 ? 30_000 : 60_000;
 
 // Free-tier competitions worth showing. PL is the one the game is played on.
 export const COMPETITIONS = [
@@ -32,13 +37,13 @@ function roundOf(m, competition) {
 const CODES = new Set(COMPETITIONS.map((c) => c.code));
 export const isCompetition = (code) => CODES.has(code);
 
-// Keep well under 10 calls a minute.
+// Stay under the plan's calls-a-minute limit.
 const callTimes = [];
 async function throttle() {
   for (;;) {
     const now = Date.now();
     while (callTimes.length && now - callTimes[0] > 60_000) callTimes.shift();
-    if (callTimes.length < 8) { callTimes.push(now); return; }
+    if (callTimes.length < CALLS_PER_MIN) { callTimes.push(now); return; }
     await new Promise((r) => setTimeout(r, 60_000 - (now - callTimes[0]) + 50));
   }
 }
@@ -120,7 +125,7 @@ function matchesTtl(matches) {
   const busy = matches.some((m) => m.status === 'live'
     || (m.status === 'upcoming' && Math.abs(new Date(m.kickoff) - now) < 15 * 60_000)
     || (m.status === 'upcoming' && new Date(m.kickoff) < now));
-  return busy ? 60_000 : 10 * 60_000;
+  return busy ? LIVE_TTL : 10 * 60_000;
 }
 
 export async function getMatches(code) {
@@ -217,7 +222,7 @@ export function normalizeDetail(m, competition) {
 }
 
 export async function getMatchDetail(id, competition) {
-  return cached(`match:${id}`, (d) => (d.status === 'live' || (d.status === 'upcoming' && new Date(d.kickoff) - Date.now() < 15 * 60_000) ? 45_000 : 10 * 60_000), async () => {
+  return cached(`match:${id}`, (d) => (d.status === 'live' || (d.status === 'upcoming' && new Date(d.kickoff) - Date.now() < 15 * 60_000) ? LIVE_TTL : 10 * 60_000), async () => {
     const json = await get(`/matches/${id}`);
     return normalizeDetail(json, competition || json.competition?.code);
   });
