@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { useApi, useMatches } from '../lib/hooks';
 import { dayLabel, timeLabel } from '../lib/format';
+import { roundLabel } from '../lib/game';
 import { useToast } from '../components/Toast';
 import Crest from '../components/Crest';
 import { Spinner, ErrorBox, Empty, Segmented, PageHead } from '../components/Bits';
@@ -57,12 +59,20 @@ function MatchRow({ m }) {
   );
 }
 
+const roundName = (code, md) => (code === 'PL' || code === 'CL' ? roundLabel(code, md) : `Matchday ${md}`);
+
 function Fixtures({ code }) {
   const { data, error, loading, reload } = useMatches(code);
+  // The round lives in the address, so Back from a match centre returns to it.
+  const [params, setParams] = useSearchParams();
+  const picked = params.get('r') ? Number(params.get('r')) : null; // null = the current round
+  const setPicked = (r) => setParams((p) => { const n = new URLSearchParams(p); if (r == null) n.delete('r'); else n.set('r', r); return n; }, { replace: true });
+  const rounds = useMemo(() => [...new Set((data?.matches || []).map((m) => m.matchday).filter((n) => n != null))].sort((a, b) => a - b), [data]);
+  const md = picked ?? data?.currentMatchday ?? rounds[0];
+  const isCurrent = md === data?.currentMatchday;
   const groups = useMemo(() => {
     if (!data) return [];
-    const md = data.currentMatchday;
-    const list = data.matches.filter((m) => m.matchday === md || m.status === 'live').sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
+    const list = data.matches.filter((m) => m.matchday === md || (isCurrent && m.status === 'live')).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
     const by = new Map();
     for (const m of list) {
       const k = dayLabel(m.kickoff);
@@ -70,14 +80,21 @@ function Fixtures({ code }) {
       by.get(k).push(m);
     }
     return [...by.entries()];
-  }, [data]);
+  }, [data, md, isCurrent]);
   if (loading && !data) return <Spinner />;
   if (error && !data) return <ErrorBox error={error} onRetry={reload} />;
-  if (!groups.length) return <Empty title="No games right now" />;
+  const i = rounds.indexOf(md);
   return (
     <div>
-      {data.currentMatchday && <p className="eyebrow center">Matchday {data.currentMatchday}</p>}
-      {groups.map(([day, ms]) => (
+      {md != null && (
+        <div className="round-nav">
+          <button className="icon-btn" aria-label="Previous round" disabled={i <= 0} onClick={() => setPicked(rounds[i - 1])}><ChevronLeft size={20} /></button>
+          <span className="eyebrow">{roundName(code, md)}</span>
+          <button className="icon-btn" aria-label="Next round" disabled={i < 0 || i >= rounds.length - 1} onClick={() => setPicked(rounds[i + 1])}><ChevronRight size={20} /></button>
+        </div>
+      )}
+      {!isCurrent && data.currentMatchday != null && <button className="link-btn round-back" onClick={() => setPicked(null)}>Back to this round</button>}
+      {!groups.length ? <Empty title="No games right now" /> : groups.map(([day, ms]) => (
         <section key={day} className="day">
           <h3 className="group-label">{day}</h3>
           <ul className="fixtures">{ms.map((m) => <MatchRow key={m.id} m={m} />)}</ul>
@@ -138,7 +155,9 @@ function Scorers({ code }) {
 }
 
 export default function Live() {
-  const [code, setCode] = useState('PL');
+  const [params, setParams] = useSearchParams();
+  const code = params.get('c') || 'PL';
+  const setCode = (c) => setParams(c === 'PL' ? {} : { c }, { replace: true });
   const [tab, setTab] = useState('games');
   return (
     <div className="page">
@@ -149,7 +168,7 @@ export default function Live() {
       </div>
       <Segmented label="View" value={tab} onChange={setTab} options={[{ value: 'games', label: 'Games' }, { value: 'table', label: 'Table' }, { value: 'scorers', label: 'Scorers' }]} />
       <div className="live-body">
-        {tab === 'games' && <Fixtures code={code} />}
+        {tab === 'games' && <Fixtures key={code} code={code} />}
         {tab === 'table' && <Standings code={code} />}
         {tab === 'scorers' && <Scorers code={code} />}
       </div>
