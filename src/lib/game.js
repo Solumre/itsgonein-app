@@ -162,3 +162,22 @@ export const QUICK_CHAT = {
 };
 
 export const REACTIONS = ['🔥', '😂', '😮', '👏', '😭', '⚽'];
+
+// A gameweek is finished once every game is played (or postponed).
+const done = (m) => m.status === 'finished' || m.status === 'postponed';
+
+export function gameweekComplete(matches, md) {
+  const gw = matches.filter((m) => m.matchday === md);
+  return gw.length > 0 && gw.every(done) && gw.some((m) => m.status === 'finished');
+}
+
+// Rank players by gameweek points; equal points share a position.
+export function rankRows(rows) {
+  const sorted = [...rows].sort((a, b) => b.points - a.points || a.nickname.localeCompare(b.nickname));
+  let rank = 0;
+  return sorted.map((r, i) => {
+    if (i === 0 || r.points !== sorted[i - 1].points) rank = i + 1;
+    return { ...r, rank };
+  });
+}
+

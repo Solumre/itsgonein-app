@@ -205,3 +205,10 @@ describe('kick-off reminders setting', () => {
     expect((await db.doc(`private/${sam.uid}`).get()).data()).toMatchObject({ notifyKickoff: false, pushTokens: ['device-2'] });
   });
 });
+
+describe('recap endpoint', () => {
+  it("refuses a gameweek that isn't finished", async () => {
+    expect((await api(sam, 'GET', '/api/recap?matchday=9')).status).toBe(400);
+    expect((await api(sam, 'GET', '/api/recap?matchday=8')).body.recap).toMatchObject({ matchday: 8, nickname: 'SamTheMan' });
+  });
+});

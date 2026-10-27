@@ -11,6 +11,7 @@ A Premier League score predictor for young fans (built for 10–15 year olds). P
 | **Chat** | One chat per league, with quick-chat buttons, reactions, and "share my pick". The app posts kickoff and full-time messages ("🎯 Sam nailed the exact score!"). |
 | **Your club** | The whole app takes on your club's colours (with contrast checks for navy or white kits). |
 | **Kick-off reminders** | Optional push notification an hour before each kickoff, only for games you haven't picked yet. |
+| **Weekly recap** | When a gameweek finishes, each league's chat gets a "Gameweek wrapped" message with the podium, and players get a recap card on Predict (points, exact scores, best call, league finish) that they can save or share as an image. League names are left off the image. |
 | **Progress** | XP, levels (Sunday League → GOAT), streaks and 11 badges. |
 | **Live** | Scores, tables and top scorers for the PL, Championship, Champions League and the big European leagues, plus a Player of the Week poll. |
 | **Admin** | Reports queue, delete/block, ticker message, Player of the Week poll, manual sync. |
