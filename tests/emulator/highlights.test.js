@@ -38,8 +38,8 @@ const recent = () => pl.filter((m) => m.status === 'finished').slice(-2).map((m,
 describe('finding highlights', () => {
   it('saves a video for each recent game, once', async () => {
     const games = recent();
-    expect(await hl.findHighlights({ matches: games, force: true })).toEqual({ found: 2 });
-    expect(await hl.findHighlights({ matches: games, force: true })).toEqual({ found: 0 });
+    expect(await hl.findHighlights({ matches: games, force: true })).toMatchObject({ found: 2 });
+    expect(await hl.findHighlights({ matches: games, force: true })).toMatchObject({ found: 0 });
     const h = await hl.getHighlight(games[1].id);
     expect(h).toMatchObject({ matchId: games[1].id, auto: true, channel: 'Sky Sports Premier League', home: { tla: games[1].home.tla } });
     expect(h.title).toContain('Highlights');
@@ -144,5 +144,19 @@ describe('admin search', () => {
     const v = r.body.candidates[0];
     await call(admin, 'POST', '/api/admin/highlights/match', { competition: 'PL', matchId: game.id, url: v.videoId, title: v.title, channel: v.channel });
     expect(await hl.getHighlight(game.id)).toMatchObject({ videoId: v.videoId, title: v.title, channel: v.channel, auto: false });
+  });
+});
+
+describe('wrong picks', () => {
+  it('hides an auto-picked video that is not highlights and replaces it', async () => {
+    const [game] = recent();
+    await db.doc(`highlights/${game.id}`).set({ matchId: game.id, competition: 'PL', kickoff: game.kickoff, videoId: 'nevilletalk', title: '"It\'s the dream of every coach!" | Gary Neville', auto: true, channel: 'Sky Sports Premier League', home: game.home, away: game.away });
+    hl.resetVideoIndex();
+    expect(await hl.getHighlight(game.id)).toBeNull();
+    const r = await hl.findHighlights({ matches: [game], force: true });
+    expect(r.found).toBeGreaterThanOrEqual(1); // other leagues' channels tagged earlier find theirs too
+    const h = await hl.getHighlight(game.id);
+    expect(h.videoId).not.toBe('nevilletalk');
+    expect(h.title).toContain('Highlights');
   });
 });
