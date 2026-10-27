@@ -17,6 +17,7 @@ A Premier League score predictor for young fans (built for 10–15 year olds). P
 | **Kick-off reminders** | Optional push notification an hour before each kickoff, only for games you haven't picked yet. |
 | **Weekly recap** | When a gameweek finishes, each league's chat gets a "Gameweek wrapped" message with the podium, and players get a recap card on Predict (points, exact scores, best call, league finish) that they can save or share as an image. League names are left off the image. |
 | **Progress** | XP, levels (Sunday League → GOAT), streaks and 11 badges. |
+| **Match centre** | Tap any game (on Live, the ticker, or "Match centre ›" on Predict) for a full page: big scoreboard in both clubs' colours, your pick and what it scores if the game ends now, your league mates' picks and the split between them (hidden until kickoff, when it only says how many have picked), form, and head-to-head history. It refreshes every 30 seconds while the game is on, with confetti when a goal goes in. With a paid football-data plan the page also shows the timeline (goals, cards, subs), line-ups, venue and referee, with no code change. |
 | **Live** | Scores, tables and top scorers for the PL, Championship, Champions League and the big European leagues, plus a Player of the Week poll. |
 | **Admin** | Reports queue, delete/block, ticker message, Player of the Week poll, manual sync. |
 
@@ -82,4 +83,4 @@ npm run lint
 Players turn them on from the Me tab (or the prompt on Predict). The server's sync loop sends one push about an hour before each kickoff time to players who haven't picked those games, and drops tokens for devices that have gone. On iPhone, web push only works when ItsGoneIn is opened from the Home Screen (Share → Add to Home Screen, iOS 16.4+), and the app tells players so.
 
 ### Upgrading the data later
-The free football-data.org tier has slightly delayed scores and no minute-by-minute events. A paid plan (football-data.org, or API-Football from about $19/month) adds true live scores, goal scorers and lineups. Only `server/football.js` needs to change.
+The free football-data.org tier has slightly delayed scores and no minute-by-minute events. A paid plan (football-data.org, or API-Football from about $19/month) adds true live scores, goal scorers and lineups. The match centre already reads goals, cards, subs and line-ups from `/v4/matches/{id}` and shows them as soon as the plan provides them. Head-to-head history may also need a paid plan.

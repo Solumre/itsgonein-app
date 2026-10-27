@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { db, auth, FieldValue } from './firebase.js';
 import {
   COMPETITIONS, GAME_COMPETITION, GAME_COMPETITIONS, isCompetition, getMatches, getStandings, getScorers, getTeams, currentMatchday,
+  getMatchDetail, getHead2Head,
 } from './football.js';
 import { syncNow, startSyncLoop, toGameMatch, gameMatches, recomputeUser, matchesByCompetition } from './sync.js';
 import { buildRecap, gameweekComplete } from './recap.js';
@@ -96,6 +97,55 @@ app.get('/api/standings', wrap(async (req, res) => {
 app.get('/api/scorers', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=600');
   res.json({ scorers: await getScorers(competition(req)) });
+}));
+
+// Match centre: the match (with goals, cards and line-ups when the data plan has them),
+// head-to-head and form, plus your pick and your league mates' picks once it kicks off.
+app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
+  const id = String(req.params.id);
+  const comp = competition(req);
+  const base = (await getMatches(comp)).find((m) => m.id === id);
+  if (!base) fail(404, 'Match not found.');
+  const [detail, h2h, standings] = await Promise.all([
+    getMatchDetail(id, comp).catch(() => null),
+    getHead2Head(id).catch(() => null),
+    getStandings(comp).catch(() => null),
+  ]);
+  // The fixtures feed can be fresher than a cached detail; keep the newer score and status.
+  const match = detail ? { ...detail, status: base.status, minute: base.minute ?? detail.minute, paused: base.paused, score: base.score } : { ...base, events: [], lineups: null };
+  const row = (teamId) => standings?.flatMap((s) => s.table).find((r) => r.team.id === teamId) || null;
+  const form = { home: row(match.home.id), away: row(match.away.id) };
+
+  let mine = null, mates = null;
+  if (req.user && GAME_COMPETITIONS.includes(comp)) {
+    const uid = req.user.uid;
+    const pickRef = (u) => db.collection('predictions').doc(`${u}_${id}`);
+    const myPick = await pickRef(uid).get();
+    const started = match.status !== 'upcoming' || new Date(match.kickoff).getTime() <= Date.now();
+    const scoreNow = match.status === 'live' || match.status === 'finished';
+    const pts = (p) => (p.points != null ? p.points : scoreNow ? scorePick(p, match.score, !!p.double) : null);
+    if (myPick.exists) { const p = myPick.data(); mine = { home: p.home, away: p.away, double: !!p.double, points: pts(p) }; }
+    const memberIds = [...new Set((await leagues.where('members', 'array-contains', uid).get()).docs.flatMap((l) => l.data().members))].filter((u) => u !== uid);
+    if (memberIds.length) {
+      const [picks, people] = await Promise.all([db.getAll(...memberIds.map(pickRef)), db.getAll(...memberIds.map((u) => users.doc(u)))]);
+      const pickBy = Object.fromEntries(picks.filter((d) => d.exists).map((d) => [d.data().uid, d.data()]));
+      if (!started) {
+        mates = { revealed: false, picked: Object.keys(pickBy).length, total: memberIds.length };
+      } else {
+        const list = people.filter((d) => d.exists && pickBy[d.id]).map((d) => {
+          const p = pickBy[d.id];
+          return { uid: d.id, nickname: d.data().nickname, avatar: d.data().avatar, club: d.data().club || null, pick: { home: p.home, away: p.away, double: !!p.double }, points: pts(p) };
+        }).sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || a.nickname.localeCompare(b.nickname));
+        const side = (p) => Math.sign(p.home - p.away);
+        mates = {
+          revealed: true, picked: list.length, total: memberIds.length, list,
+          split: { home: list.filter((m) => side(m.pick) > 0).length, draw: list.filter((m) => side(m.pick) === 0).length, away: list.filter((m) => side(m.pick) < 0).length },
+        };
+      }
+    }
+  }
+  res.set('Cache-Control', 'private, max-age=15');
+  res.json({ match, h2h, form, mine, mates });
 }));
 
 // Clubs to pick from: Premier League and Championship.

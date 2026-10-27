@@ -176,3 +176,67 @@ export function currentMatchday(matches) {
   if (open.length) return open[0].matchday;
   return Math.max(1, ...matches.map((m) => m.matchday || 1));
 }
+
+// ---- Match centre ----
+// The free plan gives the score and minute. Paid plans add goals, cards, subs and line-ups
+// to the same response; when they're missing those lists are just empty.
+const clock = (e) => (e.minute == null ? null : e.injuryTime ? `${e.minute}+${e.injuryTime}` : String(e.minute));
+const person = (p) => p?.name || null;
+
+export function normalizeDetail(m, competition) {
+  const base = normalizeMatch(m, competition);
+  const side = (t) => (t?.id === m.homeTeam?.id ? 'home' : 'away');
+  const events = [
+    ...(m.goals || []).map((g) => ({
+      kind: g.type === 'OWN' ? 'own_goal' : g.type === 'PENALTY' ? 'penalty' : 'goal',
+      minute: g.minute ?? null, clock: clock(g), side: side(g.team), player: person(g.scorer), assist: person(g.assist),
+      score: g.score ? { home: g.score.home, away: g.score.away } : null,
+    })),
+    ...(m.bookings || []).map((b) => ({
+      kind: b.card === 'RED' ? 'red' : b.card === 'YELLOW_RED' ? 'second_yellow' : 'yellow',
+      minute: b.minute ?? null, clock: clock(b), side: side(b.team), player: person(b.player),
+    })),
+    ...(m.substitutions || []).map((s) => ({
+      kind: 'sub', minute: s.minute ?? null, clock: clock(s), side: side(s.team), player: person(s.playerIn), out: person(s.playerOut),
+    })),
+  ].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
+  const lineup = (t) => (t?.lineup?.length ? {
+    formation: t.formation || null,
+    coach: person(t.coach),
+    starting: t.lineup.map((p) => ({ name: p.name, number: p.shirtNumber ?? null, position: p.position || null })),
+    bench: (t.bench || []).map((p) => ({ name: p.name, number: p.shirtNumber ?? null })),
+  } : null);
+  const home = lineup(m.homeTeam), away = lineup(m.awayTeam);
+  return {
+    ...base,
+    venue: m.venue || null,
+    referee: person((m.referees || []).find((r) => r.type === 'REFEREE') || (m.referees || [])[0]),
+    events,
+    lineups: home && away ? { home, away } : null,
+  };
+}
+
+export async function getMatchDetail(id, competition) {
+  return cached(`match:${id}`, (d) => (d.status === 'live' || (d.status === 'upcoming' && new Date(d.kickoff) - Date.now() < 15 * 60_000) ? 45_000 : 10 * 60_000), async () => {
+    const json = await get(`/matches/${id}`);
+    return normalizeDetail(json, competition || json.competition?.code);
+  });
+}
+
+// Past meetings of the two teams in a match.
+export async function getHead2Head(id) {
+  return cached(`h2h:${id}`, () => 24 * 60 * 60_000, async () => {
+    const json = await get(`/matches/${id}/head2head?limit=10`);
+    const a = json.aggregates || {};
+    return {
+      count: a.numberOfMatches ?? (json.matches || []).length,
+      home: { wins: a.homeTeam?.wins ?? 0, draws: a.homeTeam?.draws ?? 0 },
+      away: { wins: a.awayTeam?.wins ?? 0 },
+      matches: (json.matches || [])
+        .filter((x) => x.status === 'FINISHED')
+        .sort((x, y) => new Date(y.utcDate) - new Date(x.utcDate))
+        .slice(0, 5)
+        .map((x) => normalizeMatch(x, x.competition?.code || null)),
+    };
+  });
+}

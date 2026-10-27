@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { useApi, useMatches } from '../lib/hooks';
@@ -44,7 +45,7 @@ function Poll() {
 
 function MatchRow({ m }) {
   return (
-    <li className={`fixture${m.status === 'live' ? ' is-live' : ''}`}>
+    <li><Link to={`/match/${m.id}?c=${m.competition}`} className={`fixture${m.status === 'live' ? ' is-live' : ''}`}>
       <span className="fx-time">
         {m.status === 'live' ? <span className="live-pill">{m.paused ? 'HT' : m.minute ? `${m.minute}'` : 'LIVE'}</span>
           : m.status === 'finished' ? 'FT' : m.status === 'postponed' ? 'PP' : timeLabel(m.kickoff)}
@@ -52,7 +53,7 @@ function MatchRow({ m }) {
       <span className="fx-team home">{m.home.name}<Crest team={m.home} size={22} /></span>
       <span className="fx-score">{m.score ? `${m.score.home} – ${m.score.away}` : 'v'}</span>
       <span className="fx-team away"><Crest team={m.away} size={22} />{m.away.name}</span>
-    </li>
+    </Link></li>
   );
 }
 
