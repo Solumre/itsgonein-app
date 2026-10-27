@@ -19,6 +19,7 @@ export default function HighlightsAdmin({ run }) {
   const [url, setUrl] = useState('');
   const [results, setResults] = useState(null);
   const [searchingNow, setSearchingNow] = useState(false);
+  const [anywhere, setAnywhere] = useState(false);
   const { data: feed } = useMatches(comp);
   const games = useMemo(() => {
     const all = feed?.matches || [];
@@ -30,10 +31,11 @@ export default function HighlightsAdmin({ run }) {
   const post = (body, ok) => go(() => api('/api/admin/highlights/channels', { method: 'POST', body }), ok);
   const search = async () => {
     setSearchingNow(true); setResults(null);
-    try { setResults(await api('/api/admin/highlights/search', { method: 'POST', body: { competition: comp, matchId, kind } })); } catch (e) { setResults({ candidates: [], errors: [e.message] }); }
+    try { setResults(await api('/api/admin/highlights/search', { method: 'POST', body: { competition: comp, matchId, kind, anywhere } })); } catch (e) { setResults({ candidates: [], errors: [e.message] }); }
     setSearchingNow(false);
     reload();
   };
+  const addChannel = (v) => post({ add: v.channelId, name: v.channel, competitions: [comp] }, `${v.channel} added for this league`);
   const use = (v) => go(() => api('/api/admin/highlights/match', { method: 'POST', body: { competition: comp, matchId, kind, url: v.videoId, title: v.title, channel: v.channel } }), 'Video saved').then(() => setResults(null));
   const toggle = (list, c) => (list.includes(c) ? list.filter((x) => x !== c) : [...list, c]);
   const q = data?.quota;
@@ -48,7 +50,7 @@ export default function HighlightsAdmin({ run }) {
             <span className="ch-name">
               <a href={`https://www.youtube.com/channel/${c.id}`} target="_blank" rel="noreferrer">{c.name}</a>
               <small className={c.status?.error ? 'bad' : ''}>
-                {!c.status ? 'Not checked yet' : c.status.error ? `⚠️ ${c.status.error}` : `${c.status.videos} videos read · ${new Date(c.status.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
+                {!c.status ? 'Not checked yet' : c.status.error ? `⚠️ ${c.status.error}` : `${c.status.videos} videos read${c.status.oldest ? ` back to ${new Date(c.status.oldest).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''} · ${new Date(c.status.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
               </small>
             </span>
             <span className="ch-comps">
@@ -97,18 +99,27 @@ export default function HighlightsAdmin({ run }) {
             {games.map((m) => <option key={m.id} value={m.id}>{dayLabel(m.kickoff)}: {m.home.name} {m.score ? `${m.score.home}–${m.score.away}` : 'v'} {m.away.name}</option>)}
           </select>
         </div>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={!matchId || searchingNow} onClick={search}>{searchingNow ? 'Searching…' : '🔎 Search YouTube for this game'}</button>
+        <div className="yt-search-row">
+          <button type="button" className="btn btn-ghost btn-sm" disabled={!matchId || searchingNow} onClick={search}>{searchingNow ? 'Searching…' : '🔎 Search YouTube for this game'}</button>
+          <label className="yt-anywhere"><input type="checkbox" checked={anywhere} onChange={(e) => setAnywhere(e.target.checked)} /> All of YouTube (to find a channel)</label>
+        </div>
         {results && (
           <div className="yt-results">
             {results.errors?.map((e) => <p key={e} className="hint">⚠️ {e}</p>)}
             {!results.candidates.length && !results.errors?.length && <p className="hint">YouTube found nothing for this game on these channels.</p>}
-            {results.candidates.map((v) => (
-              <button type="button" key={v.videoId} className={`yt-result${v.videoId === results.best ? ' best' : ''}`} onClick={() => use(v)}>
-                <img src={thumb(v.videoId)} alt="" loading="lazy" />
-                <span className="who"><strong>{v.title}</strong><small>{v.channel} · {dayLabel(v.published)}{v.videoId === results.best ? ' · would be picked automatically' : ''}</small></span>
-                <span className="btn btn-sm">Use</span>
-              </button>
-            ))}
+            {results.candidates.map((v) => {
+              const approved = (data?.channels || []).some((c) => c.id === v.channelId);
+              return (
+                <div key={v.videoId} className={`yt-result${v.videoId === results.best ? ' best' : ''}`}>
+                  <a href={`https://www.youtube.com/watch?v=${v.videoId}`} target="_blank" rel="noreferrer"><img src={thumb(v.videoId)} alt="" loading="lazy" /></a>
+                  <span className="who"><strong>{v.title}</strong><small>{v.channel} · {dayLabel(v.published)}{v.videoId === results.best ? ' · would be picked automatically' : ''}</small></span>
+                  <span className="yt-actions">
+                    <button type="button" className="btn btn-sm" onClick={() => use(v)}>Use</button>
+                    {!approved && v.channelId && <button type="button" className="btn btn-ghost btn-sm" onClick={() => addChannel(v)}>+ Add channel</button>}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
         <div className="row-form">

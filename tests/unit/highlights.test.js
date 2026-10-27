@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFeed, findHighlight, findPreview, channelsFor, videoIdFrom, teamNames, scanUploads, isHighlightTitle } from '../../server/highlights.js';
+import { parseFeed, findHighlight, findPreview, channelsFor, videoIdFrom, teamNames, scanUploads, isHighlightTitle, searchName } from '../../server/highlights.js';
 
 const t = (name, tla) => ({ name, tla });
 const match = { id: '1', kickoff: '2026-10-31T12:30:00Z', status: 'finished', home: t('Chelsea', 'CHE'), away: t('Man United', 'MUN'), score: { home: 0, away: 1 } };
@@ -107,6 +107,17 @@ describe('scanUploads', () => {
     expect(r.videos.map((x) => x.videoId)).toEqual(['v9', 'v8', 'v7', 'v6', 'v5', 'v4']);
     expect(calls).toEqual(['first', 'p2', 'p3']);
   });
+  it('isn\'t stopped by one old video out of order', async () => {
+    const outOfOrder = [
+      { items: [vid(9, 0), vid(1, 300), vid(8, 1)], next: 'p2' }, // an old premiere near the top
+      { items: [vid(7, 2), vid(6, 30)], next: 'p3' },
+      { items: [vid(3, 40), vid(2, 50)], next: null },
+    ];
+    const calls = [];
+    const r = await scanUploads([], async (t) => { calls.push(t ?? 'first'); return outOfOrder[{ undefined: 0, p2: 1, p3: 2 }[t]]; }, { since: new Date('2026-10-25T00:00:00Z') });
+    expect(r.videos.map((x) => x.videoId)).toEqual(['v9', 'v8', 'v7']);
+    expect(calls).toEqual(['first', 'p2', 'p3']); // carried on past the old one; stopped at an all-old page
+  });
   it('tops up until it reaches a video it already has', async () => {
     const calls = [];
     const r = await scanUploads([vid(7, 2), vid(6, 3)], fetchPage(calls), { since: new Date('2026-01-01') });
@@ -133,5 +144,14 @@ describe('European club names', () => {
   it('still keeps different clubs apart', () => {
     expect(findHighlight(game(club('Real Madrid', 'Real Madrid CF', 'RMA'), club('Juventus', 'Juventus FC', 'JUV')), vt('Atletico Madrid 2-1 Juventus | Highlights'))).toBeNull();
     expect(findHighlight(game(club('Villarreal', 'Villarreal CF', 'VIL'), club('Arsenal', 'Arsenal FC', 'ARS')), vt('Aston Villa 2-1 Arsenal | Highlights'))).toBeNull();
+  });
+});
+
+describe('searchName', () => {
+  it('searches with the name titles use', () => {
+    expect(searchName({ name: 'Atleti', full: 'Club Atlético de Madrid', tla: 'ATL' })).toBe('atletico madrid');
+    expect(searchName({ name: 'Bayern', full: 'FC Bayern München', tla: 'FCB' })).toBe('bayern');
+    expect(searchName({ name: 'Man United', full: 'Manchester United FC', tla: 'MUN' })).toBe('manchester united');
+    expect(searchName({ name: 'Arsenal', full: 'Arsenal FC', tla: 'ARS' })).toBe('arsenal');
   });
 });

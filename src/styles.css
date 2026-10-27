@@ -938,3 +938,6 @@ a.fixture:hover { background: var(--card-2); }
 .ch-name { flex: 1 1 160px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .ch-name small { color: var(--dim); }
 .ch-name small.bad { color: #f87171; }
+.yt-search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 8px; }
+.yt-anywhere { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--dim); }
+.yt-actions { display: flex; flex-direction: column; gap: 6px; flex: none; }
