@@ -3,22 +3,23 @@ import { Share2, Download } from 'lucide-react';
 import { api } from '../lib/api';
 import { drawRecap, toBlob, headline } from '../lib/recapImage';
 import { ordinal } from '../lib/format';
+import { roundLabel } from '../lib/game';
 import { useToast } from './Toast';
 import Sheet from './Sheet';
 import { Spinner, ErrorBox } from './Bits';
 
-const seenKey = (md) => `igi-recap-${md}`;
-export const recapSeen = (md) => { try { return !!localStorage.getItem(seenKey(md)); } catch { return true; } };
-const markSeen = (md) => { try { localStorage.setItem(seenKey(md), '1'); } catch { /* ignore */ } };
+const seenKey = (comp, md) => (comp === 'PL' ? `igi-recap-${md}` : `igi-recap-${comp}-${md}`);
+export const recapSeen = (comp, md) => { try { return !!localStorage.getItem(seenKey(comp, md)); } catch { return true; } };
+const markSeen = (comp, md) => { try { localStorage.setItem(seenKey(comp, md), '1'); } catch { /* ignore */ } };
 
-function RecapBody({ matchday }) {
+function RecapBody({ competition, matchday }) {
   const [state, setState] = useState({ recap: null, url: null, error: null });
   const toast = useToast();
 
   useEffect(() => {
     let cancelled = false;
     let objectUrl;
-    api(`/api/recap?matchday=${matchday}`)
+    api(`/api/recap?competition=${competition}&matchday=${matchday}`)
       .then(async ({ recap }) => {
         const canvas = await drawRecap(recap);
         const blob = await toBlob(canvas);
@@ -27,23 +28,23 @@ function RecapBody({ matchday }) {
       })
       .catch((error) => { if (!cancelled) setState({ recap: null, url: null, error }); });
     return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [matchday]);
+  }, [competition, matchday]);
 
   const { recap, url, blob, error } = state;
   if (error) return <ErrorBox error={error} />;
   if (!recap) return <Spinner label="Making your recap…" />;
 
-  const file = new File([blob], `itsgonein-gameweek-${matchday}.png`, { type: 'image/png' });
+  const file = new File([blob], `itsgonein-${competition === 'CL' ? 'ucl-' : ''}${recap.roundLabel.toLowerCase().replace(/\W+/g, '-')}.png`, { type: 'image/png' });
   const canShare = typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
   const share = async () => {
     try {
-      await navigator.share({ files: [file], title: `My Gameweek ${matchday} on ItsGoneIn` });
+      await navigator.share({ files: [file], title: `My ${recap.roundLabel} on ItsGoneIn` });
     } catch (e) {
       if (e.name !== 'AbortError') toast("Couldn't share — try saving it instead", 'bad');
     }
   };
 
-  const alt = `Gameweek ${matchday}: ${recap.points} points, ${recap.exact} exact scores, ${recap.results} right results. ${headline(recap)}`;
+  const alt = `${recap.roundLabel}: ${recap.points} points, ${recap.exact} exact scores, ${recap.results} right results. ${headline(recap)}`;
   return (
     <div className="recap">
       <img src={url} alt={alt} className="recap-img" />
@@ -62,21 +63,21 @@ function RecapBody({ matchday }) {
   );
 }
 
-export function RecapSheet({ matchday, open, onClose }) {
-  useEffect(() => { if (open && matchday) markSeen(matchday); }, [open, matchday]);
+export function RecapSheet({ competition = 'PL', matchday, open, onClose }) {
+  useEffect(() => { if (open && matchday) markSeen(competition, matchday); }, [open, competition, matchday]);
   return (
-    <Sheet open={open} onClose={onClose} title={`Gameweek ${matchday} recap`}>
-      {open && <RecapBody matchday={matchday} />}
+    <Sheet open={open} onClose={onClose} title={`${roundLabel(competition, matchday)} recap`}>
+      {open && <RecapBody competition={competition} matchday={matchday} />}
     </Sheet>
   );
 }
 
 // Banner on Predict when a gameweek you played in has just finished.
-export function RecapBanner({ matchday, onOpen, onDismiss }) {
+export function RecapBanner({ competition = 'PL', matchday, onOpen, onDismiss }) {
   return (
-    <section className="recap-banner kit">
+    <section className={`recap-banner kit${competition === 'CL' ? ' cl-night' : ''}`}>
       <div>
-        <span className="eyebrow">Gameweek {matchday} is done</span>
+        <span className="eyebrow">{competition === 'CL' ? 'UCL ' : ''}{roundLabel(competition, matchday)} is done</span>
         <strong>📊 Your recap is ready</strong>
       </div>
       <div className="recap-banner-actions">

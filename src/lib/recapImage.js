@@ -47,8 +47,9 @@ function text(ctx, str, x, y, { font, color, align = 'center', spacing = 0 }) {
 // One line about how the week went, for the bottom of the card.
 export function headline(r) {
   const best = r.leagues.find((l) => l.rank);
-  if (best?.rank === 1 && best.size > 1) return '👑 Won the week in my league!';
-  if (best?.rank && best.size > 1) return `${ordinal(best.rank)} of ${best.size} in my league this week`;
+  const period = r.competition === 'CL' ? 'round' : 'week';
+  if (best?.rank === 1 && best.size > 1) return `👑 Won the ${period} in my league!`;
+  if (best?.rank && best.size > 1) return `${ordinal(best.rank)} of ${best.size} in my league this ${period}`;
   if (r.percentile != null && r.players > 2) return `Better than ${r.percentile}% of players`;
   return `${r.seasonPoints} points this season`;
 }
@@ -72,7 +73,7 @@ export async function drawRecap(r) {
   stripes(ctx, club.secondary);
 
   text(ctx, 'ITSGONEIN.', 80, 118, { font: `italic 800 64px ${DISPLAY}`, color: ink, align: 'left' });
-  text(ctx, `GAMEWEEK ${r.matchday} RECAP`, W - 80, 112, { font: `700 36px ${DISPLAY}`, color: soft, align: 'right', spacing: 5 });
+  text(ctx, `${r.competition === 'CL' ? 'UCL ' : ''}${(r.roundLabel || `Gameweek ${r.matchday}`).toUpperCase()} RECAP`, W - 80, 112, { font: `700 36px ${DISPLAY}`, color: soft, align: 'right', spacing: 5 });
 
   // Player
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
@@ -91,7 +92,7 @@ export async function drawRecap(r) {
   text(ctx, r.points === 1 ? 'POINT' : 'POINTS', W / 2, 850, { font: `800 46px ${DISPLAY}`, color: soft, spacing: 8 });
 
   // Stats row
-  const stats = [['🎯', r.exact, 'exact'], ['✅', r.results, 'results'], ['🏆', r.seasonPoints, 'season pts']];
+  const stats = [['🎯', r.exact, 'exact'], ['✅', r.results, 'results'], ['🏆', r.seasonPoints, r.competition === 'CL' ? 'ucl pts' : 'season pts']];
   const bw = 290, gap = 25, x0 = (W - (bw * 3 + gap * 2)) / 2;
   stats.forEach(([emoji, n, label], i) => {
     const x = x0 + i * (bw + gap);

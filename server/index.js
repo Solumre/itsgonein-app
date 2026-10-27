@@ -5,12 +5,12 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { db, auth, FieldValue } from './firebase.js';
 import {
-  COMPETITIONS, GAME_COMPETITION, isCompetition, getMatches, getStandings, getScorers, getTeams, currentMatchday,
+  COMPETITIONS, GAME_COMPETITION, GAME_COMPETITIONS, isCompetition, getMatches, getStandings, getScorers, getTeams, currentMatchday,
 } from './football.js';
-import { syncNow, startSyncLoop, toGameMatch } from './sync.js';
+import { syncNow, startSyncLoop, toGameMatch, gameMatches } from './sync.js';
 import { buildRecap, gameweekComplete } from './recap.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
-import { scorePick, validDoubles, AVATARS } from '../src/lib/game.js';
+import { scorePick, validDoubles, AVATARS, GAMES } from '../src/lib/game.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'tm@solumre.com').split(',').map((s) => s.trim().toLowerCase());
@@ -68,13 +68,19 @@ const competition = (req) => {
   return c;
 };
 
+const gameCompetition = (req) => {
+  const c = String(req.query.competition || GAME_COMPETITION).toUpperCase();
+  if (!GAME_COMPETITIONS.includes(c)) fail(400, 'Unknown competition');
+  return c;
+};
+
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
-app.get('/api/competitions', (_req, res) => res.json({ competitions: COMPETITIONS, game: GAME_COMPETITION }));
+app.get('/api/competitions', (_req, res) => res.json({ competitions: COMPETITIONS, game: GAME_COMPETITION, games: GAME_COMPETITIONS }));
 
 app.get('/api/matches', wrap(async (req, res) => {
   const code = competition(req);
   const matches = await getMatches(code);
-  if (code === GAME_COMPETITION) syncNow().catch((e) => console.error('sync', e.message));
+  if (GAME_COMPETITIONS.includes(code)) syncNow().catch((e) => console.error('sync', e.message));
   res.set('Cache-Control', 'public, max-age=30');
   res.json({ matches, currentMatchday: currentMatchday(matches) });
 }));
@@ -346,7 +352,9 @@ app.post('/api/leagues/:code/kick', requireUser, wrap(async (req, res) => {
 // everyone's picks for games that have kicked off.
 app.get('/api/leagues/:code/board', requireUser, wrap(async (req, res) => {
   const l = await memberLeague(req.params.code, req.user.uid);
-  const all = await getMatches(GAME_COMPETITION);
+  const comp = gameCompetition(req);
+  const { statsKey } = GAMES[comp];
+  const all = await getMatches(comp);
   const md = Number(req.query.matchday) || currentMatchday(all);
   const gwMatches = all.filter((m) => m.matchday === md).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff));
   const { members, owner, name } = l.data();
@@ -368,11 +376,12 @@ app.get('/api/leagues/:code/board', requireUser, wrap(async (req, res) => {
       if (m.status === 'finished') gw += p.points ?? scorePick(p, m.score, doubles.has(p.matchId));
       else if (m.status === 'live') live += scorePick(p, m.score, doubles.has(p.matchId));
     }
-    const settledGw = u.stats?.gw?.[md] || 0;
+    const cs = u[statsKey] || {};
+    const settledGw = cs.gw?.[md] || 0;
     return {
       uid: d.id, nickname: u.nickname, avatar: u.avatar, club: u.club || null,
-      season: (u.stats?.points || 0) - settledGw + gw + live, gw: gw + live, live,
-      streak: u.stats?.streak || 0, level: u.stats?.level || 1, picked: mine.length,
+      season: (cs.points || 0) - settledGw + gw + live, gw: gw + live, live,
+      streak: cs.streak || 0, level: u.stats?.level || 1, picked: mine.length,
     };
   });
 
@@ -389,15 +398,16 @@ app.get('/api/leagues/:code/board', requireUser, wrap(async (req, res) => {
     };
   });
 
-  res.json({ code: l.id, name, owner, matchday: md, matches: gwMatches, rows, picks: revealed });
+  res.json({ code: l.id, name, owner, competition: comp, matchday: md, matches: gwMatches, rows, picks: revealed });
 }));
 
 // Your recap for a finished gameweek.
 app.get('/api/recap', requireUser, wrap(async (req, res) => {
-  const matches = await getMatches(GAME_COMPETITION);
+  const comp = gameCompetition(req);
+  const matches = await getMatches(comp);
   const md = Number(req.query.matchday);
-  if (!Number.isInteger(md) || !gameweekComplete(matches, md)) fail(400, "That gameweek isn't finished yet.");
-  res.json({ recap: await buildRecap(req.user.uid, md, matches) });
+  if (!Number.isInteger(md) || !gameweekComplete(matches, md)) fail(400, "That round isn't finished yet.");
+  res.json({ recap: await buildRecap(req.user.uid, md, matches, comp) });
 }));
 
 // --- chat ----------------------------------------------------------------------------
@@ -416,13 +426,13 @@ app.post('/api/leagues/:code/messages', requireUser, wrap(async (req, res) => {
     Object.assign(msg, { type: 'quick', text: QUICK_CHAT[body.quick] });
   } else if (body.pickMatchId) {
     // Share your own pick — the only way a pick is seen before kickoff.
-    const m = (await getMatches(GAME_COMPETITION)).find((x) => x.id === String(body.pickMatchId));
+    const m = (await gameMatches()).find((x) => x.id === String(body.pickMatchId));
     const p = await db.collection('predictions').doc(`${uid}_${body.pickMatchId}`).get();
     if (!m || !p.exists) fail(400, 'Make a pick first!');
     const { home, away, double } = p.data();
     Object.assign(msg, {
       type: 'pick', matchId: m.id,
-      text: `I'm going ${m.home.name} ${home}-${away} ${m.away.name}${double ? ' ✌️ Double Up!' : ''}`,
+      text: `${m.competition === 'CL' ? '⭐ UCL · ' : ''}I'm going ${m.home.name} ${home}-${away} ${m.away.name}${double ? ' ✌️ Double Up!' : ''}`,
     });
   } else {
     const check = checkText(body.text);

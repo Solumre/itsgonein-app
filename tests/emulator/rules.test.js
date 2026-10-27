@@ -21,6 +21,7 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, 'matches/m1'), { competition: 'PL', matchday: 9, kickoff: future, status: 'upcoming' });
     await setDoc(doc(db, 'matches/m2'), { competition: 'PL', matchday: 9, kickoff: past, status: 'live' });
+    await setDoc(doc(db, 'matches/c1'), { competition: 'CL', matchday: 4, kickoff: future, status: 'upcoming' });
     await setDoc(doc(db, 'predictions/bob_m2'), { uid: 'bob', matchId: 'm2', home: 1, away: 0, double: false, kickoff: past, matchday: 9 });
     await setDoc(doc(db, 'users/bob'), { nickname: 'Bob' });
     await setDoc(doc(db, 'private/bob'), { birthYear: 2013 });
@@ -40,6 +41,13 @@ describe('predictions', () => {
     await assertSucceeds(setDoc(doc(alice(), 'predictions/alice_m1'), pick({ home: 3, double: true })));
     await assertSucceeds(getDoc(doc(alice(), 'predictions/alice_m1')));
     await assertSucceeds(deleteDoc(doc(alice(), 'predictions/alice_m1')));
+  });
+  it('takes Champions League picks with the right competition', async () => {
+    const cl = pick({ matchId: 'c1', matchday: 4, competition: 'CL' });
+    await assertSucceeds(setDoc(doc(alice(), 'predictions/alice_c1'), cl));
+    await assertFails(setDoc(doc(alice(), 'predictions/alice_c1'), { ...cl, competition: 'PL' }));
+    await assertFails(setDoc(doc(alice(), 'predictions/alice_c1'), pick({ matchId: 'c1', matchday: 4 }))); // no competition = PL
+    await assertSucceeds(setDoc(doc(alice(), 'predictions/alice_m1'), pick({ competition: 'PL' })));
   });
   it('locks picks once a game has kicked off', async () => {
     await assertFails(setDoc(doc(alice(), 'predictions/alice_m2'), pick({ matchId: 'm2', kickoff: past })));

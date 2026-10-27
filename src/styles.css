@@ -630,3 +630,25 @@ p { margin: 0; }
 .recap-facts { display: grid; gap: 6px; }
 .recap-facts p { background: var(--card-2); border-radius: 12px; padding: 10px 12px; font-size: 15px; }
 .recap-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+/* ---------- champions league ---------- */
+.kit.cl-night { background: #0a1a4f; color: #fff; }
+.kit.cl-night::before {
+  background:
+    radial-gradient(2px 2px at 12% 22%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 30% 70%, #fff 50%, transparent 51%),
+    radial-gradient(2px 2px at 55% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 72% 62%, #fff 50%, transparent 51%),
+    radial-gradient(2.5px 2.5px at 88% 30%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 45% 88%, #fff 50%, transparent 51%),
+    radial-gradient(120% 90% at 50% 0%, rgba(80, 140, 255, 0.45), transparent 70%),
+    linear-gradient(160deg, #13308f, #071038);
+}
+.kit.cl-night .eyebrow { color: rgba(255, 255, 255, 0.75); }
+.predict > .segmented { align-self: flex-start; }
+
+.cl-line { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; border: 0; }
+.cl-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cl-stats div { background: rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 10px; text-align: center; }
+.cl-stats b { display: block; font: 800 28px/1 var(--display); }
+.cl-stats span { font-size: 13px; font-weight: 600; opacity: 0.8; }

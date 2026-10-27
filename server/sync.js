@@ -2,8 +2,8 @@
 // times from it to lock picks), settles finished games, and posts kickoff/full-time
 // messages into league chats.
 import { db, Timestamp, FieldValue } from './firebase.js';
-import { getMatches, GAME_COMPETITION } from './football.js';
-import { computeStats } from '../src/lib/game.js';
+import { getMatches, GAME_COMPETITIONS } from './football.js';
+import { computeStats, competitionOf, levelFor } from '../src/lib/game.js';
 import { sendDueReminders } from './reminders.js';
 import { wrapGameweek } from './recap.js';
 
@@ -20,7 +20,7 @@ export function toGameMatch(m) {
 }
 
 async function loadSynced() {
-  const snap = await db.collection('matches').where('competition', '==', GAME_COMPETITION).get();
+  const snap = await db.collection('matches').where('competition', 'in', GAME_COMPETITIONS).get();
   for (const d of snap.docs) {
     const x = d.data();
     synced.set(d.id, {
@@ -33,6 +33,21 @@ async function loadSynced() {
   loaded = true;
 }
 
+// Every competition in the game, in one list. If one feed fails, the others still sync.
+export async function gameMatches() {
+  const feeds = await Promise.allSettled(GAME_COMPETITIONS.map((c) => getMatches(c)));
+  feeds.forEach((f, i) => { if (f.status === 'rejected') console.error(`feed ${GAME_COMPETITIONS[i]}:`, f.reason?.message); });
+  if (feeds[0].status === 'rejected') throw feeds[0].reason;
+  return feeds.flatMap((f) => (f.status === 'fulfilled' ? f.value : []));
+}
+
+// Matches by id, split by competition (each competition's stats are worked out separately).
+export function matchesByCompetition(matches) {
+  const out = Object.fromEntries(GAME_COMPETITIONS.map((c) => [c, new Map()]));
+  for (const m of matches) out[m.competition]?.set(m.id, toGameMatch(m));
+  return out;
+}
+
 export function syncNow() {
   if (!running) running = runSync().finally(() => { running = null; });
   return running;
@@ -40,7 +55,7 @@ export function syncNow() {
 
 async function runSync() {
   if (!loaded) await loadSynced();
-  const matches = await getMatches(GAME_COMPETITION);
+  const matches = await gameMatches();
   const now = Date.now();
   const toSettle = [];
   const toAnnounceKickoff = [];
@@ -95,14 +110,23 @@ async function picksFor(matchId) {
   return snap.docs.map((d) => d.data());
 }
 
-export async function recomputeUser(uid, matchesById) {
+// byComp: { PL: Map(id -> match), CL: Map(...) }, from matchesByCompetition().
+export async function recomputeUser(uid, byComp) {
   const [picksSnap, userSnap] = await Promise.all([
     db.collection('predictions').where('uid', '==', uid).get(),
     db.collection('users').doc(uid).get(),
   ]);
   if (!userSnap.exists) return;
   const picks = picksSnap.docs.map((d) => d.data());
-  const { stats, perPick } = computeStats(picks, matchesById, { clubTla: userSnap.data().club?.tla });
+  const clubTla = userSnap.data().club?.tla;
+  const pl = computeStats(picks.filter((p) => competitionOf(p) === 'PL'), byComp.PL, { clubTla });
+  const cl = computeStats(picks.filter((p) => competitionOf(p) === 'CL'), byComp.CL || new Map(), { clubTla });
+  // Badges come from the Premier League; Champions League points still earn XP.
+  const xp = pl.stats.xp + cl.stats.points * 10 + cl.stats.played * 2;
+  const stats = { ...pl.stats, xp, level: levelFor(xp).level };
+  const { points, played, exact, results, streak, bestStreak, gw } = cl.stats;
+  const statsCL = { points, played, exact, results, streak, bestStreak, gw };
+  const perPick = { ...pl.perPick, ...cl.perPick };
   const batch = db.batch();
   for (const d of picksSnap.docs) {
     const r = perPick[d.data().matchId];
@@ -110,15 +134,15 @@ export async function recomputeUser(uid, matchesById) {
       batch.update(d.ref, { points: r.points, kind: r.kind, doubled: r.double });
     }
   }
-  batch.update(userSnap.ref, { stats });
+  batch.update(userSnap.ref, { stats, statsCL });
   await batch.commit();
 }
 
 async function settle(finished, allMatches) {
-  const matchesById = new Map(allMatches.map((m) => [m.id, toGameMatch(m)]));
+  const byComp = matchesByCompetition(allMatches);
   const uids = new Set();
   for (const m of finished) for (const p of await picksFor(m.id)) uids.add(p.uid);
-  for (const uid of uids) await recomputeUser(uid, matchesById);
+  for (const uid of uids) await recomputeUser(uid, byComp);
   const batch = db.batch();
   for (const m of finished) {
     batch.set(db.collection('matches').doc(m.id), { settledScore: scoreKey(m.score) }, { merge: true });
@@ -146,6 +170,8 @@ async function nicknames(uids) {
   return Object.fromEntries(docs.filter((d) => d.exists).map((d) => [d.id, d.data().nickname]));
 }
 
+const tag = (m) => (m.competition === 'CL' ? '⭐ UCL · ' : '');
+
 const listNames = (names) => (names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} +${names.length - 3}`);
 
 async function postSystem(code, id, text, extra = {}) {
@@ -169,7 +195,7 @@ async function announceKickoff(m) {
     for (const p of mine) counts[`${p.home}-${p.away}`] = (counts[`${p.home}-${p.away}`] || 0) + 1;
     const [top] = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     await postSystem(code, `ko_${m.id}`,
-      `🔒 Picks locked for ${m.home.name} v ${m.away.name}! ${home} backing ${m.home.tla}, ${draw} for a draw, ${away} backing ${m.away.tla}. Most popular: ${top[0]}.`,
+      `${tag(m)}🔒 Picks locked for ${m.home.name} v ${m.away.name}! ${home} backing ${m.home.tla}, ${draw} for a draw, ${away} backing ${m.away.tla}. Most popular: ${top[0]}.`,
       { matchId: m.id, event: 'kickoff' });
   }
 }
@@ -186,7 +212,7 @@ async function announceResult(m) {
     const exact = mine.filter((p) => p.home === m.score.home && p.away === m.score.away).map((p) => names[p.uid]).filter(Boolean);
     const sign = (h, a) => Math.sign(h - a);
     const result = mine.filter((p) => sign(p.home, p.away) === sign(m.score.home, m.score.away)).length - exact.length;
-    let text = `🏁 FT: ${m.home.name} ${m.score.home}-${m.score.away} ${m.away.name}.`;
+    let text = `${tag(m)}🏁 ${m.stage && !['REGULAR_SEASON', 'LEAGUE_STAGE'].includes(m.stage) ? '90 mins' : 'FT'}: ${m.home.name} ${m.score.home}-${m.score.away} ${m.away.name}.`;
     if (exact.length) text += ` 🎯 ${listNames(exact)} nailed the exact score!`;
     if (result > 0) text += ` ✅ ${result} got the result.`;
     if (!exact.length && result <= 0) text += ' 😬 Nobody saw that coming!';
@@ -200,7 +226,7 @@ export function startSyncLoop() {
     let delay = 5 * 60_000;
     try {
       await syncNow();
-      const matches = await getMatches(GAME_COMPETITION);
+      const matches = await gameMatches();
       await sendDueReminders({ matches }).catch((e) => console.error('reminders failed:', e.message));
       const now = Date.now();
       if (matches.some((m) => m.status === 'live' || (m.status === 'upcoming' && Math.abs(new Date(m.kickoff) - now) < 30 * 60_000))) delay = 60_000;

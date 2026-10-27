@@ -28,8 +28,26 @@ const ELC = [
   [72, 'Swansea', 'SWA', 'White / Black'], [346, 'Watford', 'WAT', 'Yellow / Black'],
   [74, 'West Brom', 'WBA', 'Navy Blue / White'], [1073, 'Wrexham', 'WRE', 'Red / White'],
 ];
-const LEAGUES = { PL, ELC };
-const CURRENT_MD = 9;
+const CL = [
+  [57, 'Arsenal', 'ARS', 'Red / White'], [64, 'Liverpool', 'LIV', 'Red / White'], [65, 'Man City', 'MCI', 'Sky Blue / White'],
+  [61, 'Chelsea', 'CHE', 'Royal Blue / White'], [73, 'Tottenham', 'TOT', 'Navy Blue / White'], [67, 'Newcastle', 'NEW', 'Black / White'],
+  [86, 'Real Madrid', 'RMA', 'White / Purple'], [81, 'Barcelona', 'BAR', 'Red / Navy Blue'], [78, 'Atlético', 'ATM', 'Red / White'],
+  [77, 'Athletic Club', 'ATH', 'Red / White'], [94, 'Villarreal', 'VIL', 'Yellow / Blue'], [5, 'Bayern', 'BAY', 'Red / White'],
+  [4, 'Dortmund', 'BVB', 'Yellow / Black'], [3, 'Leverkusen', 'B04', 'Red / Black'], [19, 'Frankfurt', 'SGE', 'Black / Red'],
+  [108, 'Inter', 'INT', 'Blue / Black'], [109, 'Juventus', 'JUV', 'White / Black'], [113, 'Napoli', 'NAP', 'Sky Blue / White'],
+  [102, 'Atalanta', 'ATA', 'Blue / Black'], [524, 'PSG', 'PSG', 'Navy Blue / Red'], [516, 'Marseille', 'MAR', 'White / Sky Blue'],
+  [548, 'Monaco', 'MON', 'Red / White'], [1903, 'Benfica', 'BEN', 'Red / White'], [498, 'Sporting', 'SCP', 'Green / White'],
+  [503, 'Porto', 'FCP', 'Blue / White'], [674, 'PSV', 'PSV', 'Red / White'], [678, 'Ajax', 'AJA', 'White / Red'],
+  [851, 'Club Brugge', 'CLU', 'Blue / Black'], [610, 'Galatasaray', 'GAL', 'Red / Yellow'], [654, 'Olympiacos', 'OLY', 'Red / White'],
+  [930, 'Slavia Praha', 'SLA', 'Red / White'], [1876, 'København', 'KOB', 'White / Blue'], [5721, 'Bodø/Glimt', 'BOD', 'Yellow / Black'],
+  [7283, 'Qarabağ', 'QAR', 'Black / White'], [6806, 'Union SG', 'USG', 'Yellow / Blue'], [1887, 'Pafos', 'PAF', 'Blue / White'],
+];
+// currentMd: the round in progress when the server starts. CL only has its 8-matchday league phase.
+const LEAGUES = {
+  PL: { teams: PL, idBase: 500000, currentMd: 9 },
+  ELC: { teams: ELC, idBase: 600000, currentMd: 9 },
+  CL: { teams: CL, idBase: 700000, currentMd: 4, rounds: 8, stage: 'LEAGUE_STAGE' },
+};
 const START = Number(process.env.MOCK_NOW) || Date.now();
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
@@ -72,15 +90,15 @@ const CURRENT_OFFSETS = [-3 * HOUR, -3 * HOUR, -40 * 60_000, -40 * 60_000, 2 * H
 const memo = {};
 function season(code) {
   if (memo[code]) return memo[code];
-  const teams = LEAGUES[code];
+  const { teams, idBase, currentMd: CURRENT_MD, rounds: maxRounds } = LEAGUES[code];
   const strength = Object.fromEntries(teams.map(([id], i) => [id, 1 - i / teams.length + rng(id)() * 0.6]));
-  const rounds = schedule(teams.length);
+  const rounds = schedule(teams.length).slice(0, maxRounds);
   const matches = [];
   rounds.forEach((pairs, r) => {
     const md = r + 1;
     pairs.forEach(([h, a], i) => {
       const home = teams[h], away = teams[a];
-      const id = (code === 'PL' ? 500000 : 600000) + md * 100 + i;
+      const id = idBase + md * 100 + i;
       const kickoff = md === CURRENT_MD
         ? START + CURRENT_OFFSETS[i % CURRENT_OFFSETS.length]
         : START + (md - CURRENT_MD) * 7 * DAY + (i % 3) * 2 * HOUR;
@@ -120,6 +138,7 @@ function matchJson(m, code, now) {
     minute: st.minute,
     matchday: m.md,
     competition: { code },
+    stage: LEAGUES[code].stage || 'REGULAR_SEASON',
     homeTeam: toTeam(m.home),
     awayTeam: toTeam(m.away),
     score: { fullTime: st.score },
@@ -127,7 +146,7 @@ function matchJson(m, code, now) {
 }
 
 function standings(code, now) {
-  const rows = new Map(LEAGUES[code].map((t) => [t[0], { team: toTeam(t), playedGames: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, form: [] }]));
+  const rows = new Map(LEAGUES[code].teams.map((t) => [t[0], { team: toTeam(t), playedGames: 0, won: 0, draw: 0, lost: 0, goalsFor: 0, goalsAgainst: 0, form: [] }]));
   for (const m of season(code).sort((a, b) => a.kickoff - b.kickoff)) {
     const st = matchState(m, now);
     if (st.status !== 'FINISHED') continue;
@@ -155,9 +174,9 @@ export function mockFeed(path) {
   if (!LEAGUES[code]) return { matches: [], standings: [], scorers: [], teams: [] };
   if (kind === 'matches') return { matches: season(code).map((m) => matchJson(m, code, now)) };
   if (kind === 'standings') return standings(code, now);
-  if (kind === 'teams') return { teams: LEAGUES[code].map(toTeam) };
+  if (kind === 'teams') return { teams: LEAGUES[code].teams.map(toTeam) };
   if (kind === 'scorers') {
-    const byTla = Object.fromEntries(LEAGUES.PL.map((t) => [t[2], t]));
+    const byTla = Object.fromEntries(LEAGUES.PL.teams.map((t) => [t[2], t]));
     return {
       scorers: code !== 'PL' ? [] : SCORER_NAMES.map((name, i) => ({
         player: { name }, team: toTeam(byTla[SCORER_TEAMS[i]]), goals: 11 - Math.floor(i * 0.8), assists: (i * 3) % 6,

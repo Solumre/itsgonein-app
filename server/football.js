@@ -18,6 +18,17 @@ export const COMPETITIONS = [
   { code: 'FL1', name: 'Ligue 1', flag: '🇫🇷' },
 ];
 export const GAME_COMPETITION = 'PL';
+// Competitions you can predict. The Champions League runs alongside as a mini-league.
+export const GAME_COMPETITIONS = ['PL', 'CL'];
+
+// Champions League rounds as numbers, so they work like gameweeks: league phase
+// matchdays 1-8, then the knockout rounds.
+const CL_ROUNDS = { PLAYOFFS: 9, LAST_16: 10, QUARTER_FINALS: 11, SEMI_FINALS: 12, FINAL: 13 };
+function roundOf(m, competition) {
+  if (competition !== 'CL') return m.matchday ?? null;
+  if (m.stage === 'LEAGUE_STAGE') return m.matchday ?? null;
+  return CL_ROUNDS[m.stage] ?? null; // qualifiers aren't part of the game
+}
 const CODES = new Set(COMPETITIONS.map((c) => c.code));
 export const isCompetition = (code) => CODES.has(code);
 
@@ -85,12 +96,14 @@ const team = (t) => ({
 
 export function normalizeMatch(m, competition) {
   const status = STATUS[m.status] || 'upcoming';
-  const ft = m.score?.fullTime || {};
+  // Predictions are on the score after 90 minutes, so ignore extra time and penalties.
+  const ft = (m.score?.duration && m.score.duration !== 'REGULAR' && m.score.regularTime) || m.score?.fullTime || {};
   const hasScore = ft.home != null && ft.away != null;
   return {
     id: String(m.id),
     competition,
-    matchday: m.matchday ?? null,
+    matchday: roundOf(m, competition),
+    stage: m.stage || null,
     kickoff: m.utcDate,
     status,
     paused: m.status === 'PAUSED',
