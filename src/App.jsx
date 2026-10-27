@@ -18,6 +18,7 @@ import Me from './pages/Me';
 import Parent from './pages/Parent';
 import MatchCentre from './pages/MatchCentre';
 import Quiz from './pages/Quiz';
+import Penalties from './pages/Penalties';
 
 const Admin = lazy(() => import('./pages/Admin'));
 
@@ -140,6 +141,7 @@ export default function App() {
             <Route path="/live" element={inShell(<Live />, false)} />
             <Route path="/match/:id" element={inShell(<MatchCentre />, false)} />
             <Route path="/quiz" element={inShell(<Quiz />)} />
+            <Route path="/penalties" element={inShell(<Penalties />)} />
             <Route path="/me" element={inShell(<Me />)} />
             <Route path="/admin" element={inShell(<Suspense fallback={<Spinner />}><Admin /></Suspense>)} />
             <Route path="*" element={<Navigate to="/" replace />} />

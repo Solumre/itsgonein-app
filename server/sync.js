@@ -12,6 +12,7 @@ import { awardMonthly, awardSeason } from './trophies.js';
 import { findHighlights } from './highlights.js';
 import { settleLive, liveTotal, LIVE_XP } from './live.js';
 import { quizStats, QUIZ_XP } from './quiz.js';
+import { penStats } from './pens.js';
 
 const synced = new Map(); // matchId -> fingerprint of what Firestore holds
 let loaded = false;
@@ -142,10 +143,11 @@ export async function recomputeUser(uid, byComp) {
   const gwWithBonus = { ...pl.stats.gw };
   for (const [md, pts] of Object.entries(bonus.gw)) gwWithBonus[md] = (gwWithBonus[md] || 0) + pts;
   // Live picks earn XP only; they don't change league points.
-  // So do daily quiz answers.
-  const [live, quiz] = await Promise.all([liveTotal(uid), quizStats(uid)]);
-  const xp = pl.stats.xp + bonus.total * 10 + cl.stats.points * 10 + cl.stats.played * 2 + live * LIVE_XP + quiz.total * QUIZ_XP;
-  const stats = { ...pl.stats, points: pl.stats.points + bonus.total, gw: gwWithBonus, bonus: bonus.total, live, quiz, xp, level: levelFor(xp).level };
+  // So do daily quiz answers and penalty shootouts.
+  const [live, quiz, pensAll] = await Promise.all([liveTotal(uid), quizStats(uid), penStats(uid)]);
+  const { xp: pensXp, ...pens } = pensAll;
+  const xp = pl.stats.xp + bonus.total * 10 + cl.stats.points * 10 + cl.stats.played * 2 + live * LIVE_XP + quiz.total * QUIZ_XP + pensXp;
+  const stats = { ...pl.stats, points: pl.stats.points + bonus.total, gw: gwWithBonus, bonus: bonus.total, live, quiz, pens, xp, level: levelFor(xp).level };
   const { points, played, exact, results, streak, bestStreak, gw } = cl.stats;
   const statsCL = { points, played, exact, results, streak, bestStreak, gw };
   const perPick = { ...pl.perPick, ...cl.perPick };

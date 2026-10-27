@@ -877,3 +877,48 @@ a.fixture:hover { background: var(--card-2); }
 .quiz-review .who { display: flex; flex-direction: column; gap: 2px; }
 .quiz-review small { color: var(--dim); }
 .quiz-review .who strong, .quiz-review .who small { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* Penalty shootout */
+.pens-card { background: linear-gradient(120deg, color-mix(in srgb, #22c55e 28%, var(--card)), var(--card)); }
+.pen-score { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.pen-side { display: flex; flex-direction: column; gap: 4px; font: 800 14px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.pen-side.right { align-items: flex-end; }
+.pen-big { font: 900 40px/1 var(--display); }
+.pen-dots { display: flex; gap: 4px; }
+.pen-dots i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-2); display: grid; place-items: center; font: 800 11px/1 sans-serif; font-style: normal; }
+.pen-dots i.goal { background: #22c55e; border-color: #22c55e; color: #fff; }
+.pen-dots i.miss { background: #ef4444; border-color: #ef4444; color: #fff; }
+.pen-pitch { position: relative; aspect-ratio: 4 / 3; border-radius: 18px; overflow: hidden;
+  background: repeating-linear-gradient(180deg, #2f8f3a 0 28px, #2a8134 28px 56px); box-shadow: inset 0 -40px 60px rgba(0, 0, 0, 0.25); }
+.pen-pitch.idle { filter: saturate(0.8); }
+.pen-goal { position: absolute; left: 10%; right: 10%; top: 8%; height: 52%; border: 6px solid #fff; border-bottom: 0; border-radius: 4px 4px 0 0;
+  background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px 14px), repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px 14px), rgba(0, 0, 0, 0.15); }
+.pen-zone { position: absolute; width: 33.33%; height: 50%; border: 1px dashed rgba(255, 255, 255, 0.35); background: transparent; display: grid; place-items: center; font-size: 26px; opacity: 0.85; z-index: 2; }
+.pen-zone span { transition: transform 0.15s; }
+.pen-zone:hover span, .pen-zone:focus-visible span { transform: scale(1.3); }
+.pen-target { position: absolute; transform: translate(-50%, -50%); font-size: 28px; z-index: 2; animation: pen-pulse 0.8s infinite; }
+@keyframes pen-pulse { 50% { transform: translate(-50%, -50%) scale(1.25); } }
+.pen-keeper { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); transform-origin: 50% 90%; transition: transform 0.45s cubic-bezier(.2, .8, .3, 1); z-index: 1; }
+.pen-keeper.dive-0 { transform: translateX(-160%) translateY(-10%) rotate(-70deg); }
+.pen-keeper.dive-2 { transform: translateX(60%) translateY(-10%) rotate(70deg); }
+.pen-keeper.dive-1 { transform: translateX(-50%) translateY(-22%); }
+.pen-ball { position: absolute; left: 50%; top: 84%; transform: translate(-50%, -50%); font-size: 34px; z-index: 3; transition: left 0.5s ease-out, top 0.5s ease-out, font-size 0.5s; filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.4)); }
+.pen-ball.fly { font-size: 22px; }
+.pen-say { position: absolute; left: 50%; top: 72%; transform: translate(-50%, -50%); font: 900 44px/1 var(--display); letter-spacing: 0.04em; color: #fff; text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35); animation: pen-say 0.5s 0.45s both; z-index: 4; }
+.pen-say.good { color: #fde047; }
+.pen-say.bad { color: #fff; }
+@keyframes pen-say { from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .pen-keeper, .pen-ball { transition: none; } .pen-say, .pen-target { animation: none; } }
+.pen-controls { margin: 14px 0; text-align: center; }
+.pen-hint { font-size: 17px; }
+.pen-start { width: 100%; font-size: 20px; min-height: 60px; }
+.pen-dive { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pen-dive .btn { min-height: 60px; font-size: 17px; }
+.pen-power { width: 100%; border: 0; background: none; padding: 0; }
+.pen-power-bar { position: relative; display: block; height: 28px; border-radius: 14px; background: linear-gradient(90deg, #22c55e, #eab308 70%); overflow: hidden; border: 2px solid var(--line-2); }
+.pen-power-red { position: absolute; top: 0; bottom: 0; right: 0; background: #ef4444; }
+.pen-power-mark { position: absolute; top: -2px; bottom: -2px; width: 6px; margin-left: -3px; background: #fff; box-shadow: 0 0 8px rgba(0, 0, 0, 0.6); }
+.pen-power-label { display: block; margin-top: 8px; font: 900 22px/1 var(--display); letter-spacing: 0.06em; }
+.pen-over { text-align: center; }
+.pen-result { display: block; font: 900 30px/1.1 var(--display); margin-bottom: 6px; }
+.play-cards { display: grid; gap: 8px; margin: 12px 0; } .play-cards .quiz-card { margin: 0; } @media (min-width: 700px) { .play-cards { grid-template-columns: 1fr 1fr; } }

@@ -16,6 +16,7 @@ import { ReminderPrompt } from '../components/Reminders';
 import { RecapSheet, RecapBanner, recapSeen } from '../components/Recap';
 import BonusCard from '../components/Bonus';
 import { QuizCard } from './Quiz';
+import { PensCard } from './Penalties';
 
 const isOpen = (m, now) => m.status === 'upcoming' && new Date(m.kickoff).getTime() > now;
 
@@ -213,7 +214,7 @@ export default function Predict() {
         { value: 'CL', label: '⭐ Champions League' },
       ]} />
 
-      <QuizCard />
+      <div className="play-cards"><QuizCard /><PensCard /></div>
 
       {showBanner && <RecapBanner competition={comp} matchday={lastDone} onOpen={() => setRecapMd(lastDone)} onDismiss={() => setBannerGone(true)} />}
 
