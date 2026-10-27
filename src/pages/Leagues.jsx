@@ -8,6 +8,7 @@ import { useToast } from '../components/Toast';
 import Sheet from '../components/Sheet';
 import { Spinner, Empty, PageHead } from '../components/Bits';
 import ParentCard from '../components/ParentCard';
+import { H2HSection } from '../components/H2H';
 
 export default function Leagues() {
   const { user, canSocial } = useSession();
@@ -53,6 +54,8 @@ export default function Leagues() {
           <button className="btn btn-ghost btn-sm" onClick={() => open('join')}><LogIn size={16} /> Join</button>
         </div>
       </PageHead>
+
+      {leagues?.length > 0 && <H2HSection />}
 
       {loading ? <Spinner /> : !leagues?.length ? (
         <Empty emoji="🏆" title="No leagues yet">

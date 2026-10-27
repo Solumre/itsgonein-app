@@ -12,10 +12,11 @@ import Avatar from '../components/Avatar';
 import Crest from '../components/Crest';
 import Sheet from '../components/Sheet';
 import { Spinner, ErrorBox, Segmented, Empty } from '../components/Bits';
+import { ChallengeButton } from '../components/H2H';
 
 const boardLive = (d) => d?.matches?.some((m) => m.status === 'live');
 
-function Table({ board, me }) {
+function Table({ board, me, code }) {
   const [mode, setMode] = useState('season');
   const rows = [...board.rows].sort((a, b) => (mode === 'season' ? b.season - a.season || b.gw - a.gw : b.gw - a.gw || b.season - a.season));
   const live = board.rows.some((r) => r.live > 0);
@@ -42,6 +43,7 @@ function Table({ board, me }) {
                 <small>{r.club?.name || 'Neutral'} · LV {r.level}{r.streak >= 3 ? ` · ${r.streak}🔥` : ''}</small>
               </span>
               {r.live > 0 && <span className="live-delta">+{r.live}</span>}
+              {r.uid !== me && <ChallengeButton opponent={r} league={code} competition={board.competition} />}
               <span className="pts">{score}</span>
             </li>
           );
@@ -319,7 +321,7 @@ export default function League() {
         ]} />
       )}
 
-      {tab === 'table' && <Table board={board} me={user.uid} />}
+      {tab === 'table' && <Table board={board} me={user.uid} code={code} />}
       {tab === 'picks' && <Picks board={board} />}
       {tab === 'chat' && <Chat code={code} board={board} myUid={user.uid} />}
 

@@ -184,6 +184,16 @@ describe('player of the week', () => {
   });
 });
 
+describe('head-to-head endpoints', () => {
+  it('challenge, list and accept over the API', async () => {
+    const r = await api(sam, 'POST', '/api/challenges', { to: kid.uid, league, competition: 'PL' });
+    expect(r.status).toBe(200);
+    expect((await api(kid, 'GET', '/api/challenges')).body.challenges[0]).toMatchObject({ id: r.body.id, status: 'pending', roundLabel: 'Gameweek 10' });
+    expect((await api(kid, 'POST', `/api/challenges/${r.body.id}/respond`, { accept: true })).body).toEqual({ status: 'accepted' });
+    expect((await api(sam, 'POST', '/api/challenges', { to: kid.uid, league })).status).toBe(409);
+  });
+});
+
 describe('deleting an account', () => {
   it('removes the player and their data', async () => {
     expect((await api(kid, 'DELETE', '/api/me')).status).toBe(200);
@@ -192,6 +202,7 @@ describe('deleting an account', () => {
     expect((await db.doc('nicknames/littleleo').get()).exists).toBe(false);
     expect((await db.doc(`leagues/${league}`).get()).data().members).toEqual([sam.uid]);
     expect((await db.collection('predictions').where('uid', '==', kid.uid).get()).empty).toBe(true);
+    expect((await db.collection('challenges').where('players', 'array-contains', kid.uid).get()).empty).toBe(true);
   });
 });
 

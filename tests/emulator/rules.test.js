@@ -68,6 +68,22 @@ describe('predictions', () => {
   });
 });
 
+describe('head-to-heads', () => {
+  it('only the two players can read a challenge or rivalry', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'challenges/c1'), { players: ['alice', 'bob'], to: 'bob', status: 'pending' });
+      await setDoc(doc(ctx.firestore(), 'rivalries/alice_bob'), { players: ['alice', 'bob'] });
+    });
+    await assertSucceeds(getDoc(doc(alice(), 'challenges/c1')));
+    await assertSucceeds(getDocs(query(collection(alice(), 'challenges'), where('players', 'array-contains', 'alice'), where('status', '==', 'pending'))));
+    await assertSucceeds(getDoc(doc(alice(), 'rivalries/alice_bob')));
+    const carol = env.authenticatedContext('carol').firestore();
+    await assertFails(getDoc(doc(carol, 'challenges/c1')));
+    await assertFails(getDoc(doc(carol, 'rivalries/alice_bob')));
+    await assertFails(setDoc(doc(alice(), 'challenges/c2'), { players: ['alice', 'bob'] }));
+  });
+});
+
 describe('everything else is read-only from the app', () => {
   it('profiles are readable but not writable', async () => {
     await assertSucceeds(getDoc(doc(alice(), 'users/bob')));
