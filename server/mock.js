@@ -159,7 +159,7 @@ function standings(code, now) {
     else { h.draw++; a.draw++; h.form.push('D'); a.form.push('D'); }
   }
   const table = [...rows.values()]
-    .map((r) => ({ ...r, points: r.won * 3 + r.draw, goalDifference: r.goalsFor - r.goalsAgainst, form: r.form.slice(-5).join(',') }))
+    .map((r) => ({ ...r, points: r.won * 3 + r.draw, goalDifference: r.goalsFor - r.goalsAgainst, form: null })) // like the real feed, which often has no form
     .sort((x, y) => y.points - x.points || y.goalDifference - x.goalDifference || y.goalsFor - x.goalsFor)
     .map((r, i) => ({ ...r, position: i + 1 }));
   return { standings: [{ type: 'TOTAL', table }] };

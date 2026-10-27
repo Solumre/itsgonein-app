@@ -135,11 +135,23 @@ export async function getMatches(code) {
   });
 }
 
+// Last five results per team id ('WDLWW', oldest first), from finished matches.
+export function formFromMatches(matches) {
+  const out = new Map();
+  const add = (id, r) => out.set(id, ((out.get(id) || '') + r).slice(-5));
+  for (const m of matches.filter((x) => x.status === 'finished' && x.score).sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))) {
+    const d = Math.sign(m.score.home - m.score.away);
+    add(m.home.id, d > 0 ? 'W' : d < 0 ? 'L' : 'D');
+    add(m.away.id, d < 0 ? 'W' : d > 0 ? 'L' : 'D');
+  }
+  return out;
+}
+
 export async function getStandings(code) {
   return cached(`standings:${code}`, () => 10 * 60_000, async () => {
     const json = await get(`/competitions/${code}/standings`);
     const total = (json.standings || []).filter((s) => s.type === 'TOTAL');
-    return total.map((s) => ({
+    const groups = total.map((s) => ({
       group: s.group || null,
       table: s.table.map((r) => ({
         position: r.position,
@@ -151,6 +163,12 @@ export async function getStandings(code) {
         form: (r.form || '').replace(/,/g, '').slice(-5),
       })),
     }));
+    // football-data often leaves form empty; work it out from the results instead.
+    if (groups.some((g) => g.table.some((r) => !r.form))) {
+      const form = formFromMatches(await getMatches(code).catch(() => []));
+      for (const r of groups.flatMap((g) => g.table)) if (!r.form) r.form = form.get(r.team.id) || '';
+    }
+    return groups;
   });
 }
 
