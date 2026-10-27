@@ -18,7 +18,7 @@ A Premier League score predictor for young fans (built for 10–15 year olds). P
 | **Weekly recap** | When a gameweek finishes, each league's chat gets a "Gameweek wrapped" message with the podium, and players get a recap card on Predict (points, exact scores, best call, league finish) that they can save or share as an image. League names are left off the image. |
 | **Progress** | XP, levels (Sunday League → GOAT), streaks and 11 badges. |
 | **Match centre** | Tap any game (on Live, the ticker, or "Match centre ›" on Predict) for a full page: big scoreboard in both clubs' colours, your pick and what it scores if the game ends now, your league mates' picks and the split between them (hidden until kickoff, when it only says how many have picked), form, and head-to-head history. It refreshes every 30 seconds while the game is on, with confetti when a goal goes in. With a paid football-data plan the page also shows the timeline (goals, cards, subs), line-ups, venue and referee, with no code change. |
-| **Live** | Scores, tables and top scorers for the PL, Championship, Champions League and the big European leagues, plus a Player of the Week poll. |
+| **Live** | Scores (flick back and forward through rounds with the ‹ › arrows), tables and top scorers for the PL, Championship, Champions League and the big European leagues, plus a Player of the Week poll. |
 | **Admin** | Reports queue, delete/block, ticker message, Player of the Week poll, manual sync. |
 
 ### Safety (players are children)
