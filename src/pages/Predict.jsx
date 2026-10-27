@@ -15,6 +15,7 @@ import { Spinner, ErrorBox, Empty, Segmented } from '../components/Bits';
 import { ReminderPrompt } from '../components/Reminders';
 import { RecapSheet, RecapBanner, recapSeen } from '../components/Recap';
 import BonusCard from '../components/Bonus';
+import { QuizCard } from './Quiz';
 
 const isOpen = (m, now) => m.status === 'upcoming' && new Date(m.kickoff).getTime() > now;
 
@@ -211,6 +212,8 @@ export default function Predict() {
         { value: 'PL', label: 'Premier League' },
         { value: 'CL', label: '⭐ Champions League' },
       ]} />
+
+      <QuizCard />
 
       {showBanner && <RecapBanner competition={comp} matchday={lastDone} onOpen={() => setRecapMd(lastDone)} onDismiss={() => setBannerGone(true)} />}
 
