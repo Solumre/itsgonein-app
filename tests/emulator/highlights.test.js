@@ -28,7 +28,7 @@ beforeAll(async () => {
   await new Promise((r) => { server = app.listen(0, r); });
   base = `http://127.0.0.1:${server.address().port}`;
   pl = await (await import('../../server/football.js')).getMatches('PL');
-  [admin, kid] = await Promise.all([signIn('admin@example.com', true), signIn('kid@example.com')]);
+  [admin, kid] = await Promise.all([signIn('admin@example.com', true), signIn('hl-kid@example.com')]);
 });
 afterAll(() => server?.close());
 
@@ -57,7 +57,7 @@ describe('finding highlights', () => {
 describe('admin', () => {
   it('only lets admins in', async () => {
     expect((await call(kid, 'GET', '/api/admin/highlights')).status).toBe(403);
-    expect((await call(admin, 'GET', '/api/admin/highlights')).body.channels).toEqual(hl.DEFAULT_CHANNELS);
+    expect((await call(admin, 'GET', '/api/admin/highlights')).body.channels.map(({ status, ...c }) => c)).toEqual(hl.DEFAULT_CHANNELS); // eslint-disable-line no-unused-vars
   });
 
   it('adds and removes channels', async () => {
