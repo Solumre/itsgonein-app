@@ -6,6 +6,7 @@ import { useApi } from '../lib/hooks';
 import { ago } from '../lib/format';
 import { useToast } from '../components/Toast';
 import { Spinner, ErrorBox, PageHead, Empty } from '../components/Bits';
+import HighlightsAdmin from '../components/HighlightsAdmin';
 
 const REASONS = { mean: 'Mean / bullying', personal_info: 'Personal info', inappropriate: 'Inappropriate', spam: 'Spam', other: 'Other' };
 
@@ -104,6 +105,8 @@ export default function Admin() {
           </article>
         ))}
       </section>
+
+      <HighlightsAdmin run={run} />
 
       <section className="card">
         <h2 className="section-title">Results</h2>

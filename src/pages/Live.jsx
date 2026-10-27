@@ -8,6 +8,7 @@ import { dayLabel, timeLabel } from '../lib/format';
 import { roundLabel } from '../lib/game';
 import { useToast } from '../components/Toast';
 import Crest from '../components/Crest';
+import { thumb } from '../components/Video';
 import { Spinner, ErrorBox, Empty, Segmented, PageHead } from '../components/Bits';
 
 const COMPS = [
@@ -41,6 +42,25 @@ function Poll() {
         );
       })}
       {!voted && <p className="hint">Tap to vote. One vote each per week.</p>}
+    </section>
+  );
+}
+
+function HighlightsStrip() {
+  const { data } = useApi('/api/highlights', { refresh: 10 * 60_000 });
+  const list = data?.highlights || [];
+  if (!list.length) return null;
+  return (
+    <section className="hl-strip" aria-label="Latest highlights">
+      <h2 className="section-title">📺 Latest highlights</h2>
+      <div className="hl-row">
+        {list.map((h) => (
+          <Link key={h.matchId} to={`/match/${h.matchId}?c=${h.competition}`} className="hl-card">
+            <span className="hl-thumb" style={{ backgroundImage: `url(${thumb(h.videoId)})` }}><span className="video-play sm">▶</span></span>
+            <span className="hl-score"><Crest team={h.home} size={16} /> {h.home.tla} {h.score ? `${h.score.home}–${h.score.away}` : 'v'} {h.away.tla} <Crest team={h.away} size={16} /></span>
+          </Link>
+        ))}
+      </div>
     </section>
   );
 }
@@ -162,6 +182,7 @@ export default function Live() {
   return (
     <div className="page">
       <PageHead title="Live" sub="Scores, tables and top scorers" />
+      <HighlightsStrip />
       <Poll />
       <div className="comp-chips" role="tablist" aria-label="Competition">
         {COMPS.map(([c, name]) => <button key={c} role="tab" aria-selected={code === c} className={`chip${code === c ? ' on' : ''}`} onClick={() => setCode(c)}>{name}</button>)}
