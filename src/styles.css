@@ -702,3 +702,28 @@ p { margin: 0; }
 .bq-locked b { color: var(--text); }
 .bonus-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--dim); font-size: 14px; font-weight: 600; border-top: 1px solid var(--line); padding-top: 10px; }
 .bonus-foot span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* ---------- trophy cabinet ---------- */
+.cabinet { display: flex; flex-direction: column; gap: 10px; }
+.cabinet-glass {
+  border-radius: 18px; padding: 14px 12px 8px;
+  background: linear-gradient(180deg, #3b2614, #23160b);
+  box-shadow: inset 0 0 0 3px #5a3b1f, inset 0 10px 30px rgba(0, 0, 0, 0.45), var(--shadow);
+}
+.cabinet-shelf { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 8px; }
+@media (min-width: 600px) { .cabinet-shelf { grid-template-columns: repeat(6, 1fr); } }
+.trophy {
+  position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px;
+  padding: 6px 4px 10px; color: #f6e7d2;
+  border-bottom: 6px solid #6b4726; box-shadow: 0 6px 0 -2px #2a1a0c;
+}
+.trophy .trophy-emoji { font-size: 40px; filter: grayscale(1) brightness(0.45); opacity: 0.6; transition: transform 0.2s; }
+.trophy.got .trophy-emoji { filter: drop-shadow(0 0 10px rgba(255, 210, 0, 0.55)); opacity: 1; }
+.trophy.got:hover .trophy-emoji { transform: scale(1.12) rotate(-4deg); }
+.trophy strong { font: 800 14px/1.05 var(--display); text-transform: uppercase; letter-spacing: 0.02em; }
+.trophy small { font-size: 11px; line-height: 1.2; opacity: 0.7; }
+.trophy:not(.got) strong { opacity: 0.55; }
+.trophy-count { position: absolute; top: 2px; right: 6px; background: #ffd200; color: #2a1a0c; font: 800 13px/1 var(--display); padding: 3px 6px; border-radius: 999px; }
+.trophy-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.trophy-list li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.trophy-list .trophy-emoji { font-size: 26px; }

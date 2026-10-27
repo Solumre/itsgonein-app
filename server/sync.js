@@ -8,6 +8,7 @@ import { sendDueReminders } from './reminders.js';
 import { wrapGameweek } from './recap.js';
 import { settleChallenges } from './h2h.js';
 import { bonusForUser, bonusPlayers } from './bonus.js';
+import { awardMonthly, awardSeason } from './trophies.js';
 
 const synced = new Map(); // matchId -> fingerprint of what Firestore holds
 let loaded = false;
@@ -104,6 +105,8 @@ async function runSync() {
   for (const m of toAnnounceKickoff) await announceKickoff(m).catch((e) => console.error('kickoff announce', e));
   for (const m of toAnnounceResult) await announceResult(m).catch((e) => console.error('result announce', e));
   await wrapGameweek(matches).catch((e) => console.error('gameweek wrap', e));
+  await awardMonthly(matches).catch((e) => console.error('monthly trophies', e));
+  await awardSeason(matches).catch((e) => console.error('season trophies', e));
   await settleChallenges(matches).catch((e) => console.error('head-to-heads', e));
   return { matches: matches.length, settled: toSettle.length };
 }

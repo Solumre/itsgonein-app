@@ -10,6 +10,7 @@ import {
 import { syncNow, startSyncLoop, toGameMatch, gameMatches, recomputeUser, matchesByCompetition } from './sync.js';
 import { buildRecap, gameweekComplete } from './recap.js';
 import { createChallenge, respondChallenge, cancelChallenge, listChallenges, openRound } from './h2h.js';
+import { listTrophies } from './trophies.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
 import { scorePick, validDoubles, AVATARS, GAMES } from '../src/lib/game.js';
@@ -242,6 +243,10 @@ app.post('/api/me/reminders', requireUser, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+app.get('/api/me/trophies', requireUser, wrap(async (req, res) => {
+  res.json({ trophies: await listTrophies(req.user.uid) });
+}));
+
 app.post('/api/me/block', requireUser, wrap(async (req, res) => {
   const target = String(req.body?.uid || '');
   if (!target || target === req.user.uid) fail(400, 'Bad user');
@@ -270,7 +275,9 @@ app.delete('/api/me', requireUser, wrap(async (req, res) => {
     const snap = await db.collection(col).where('players', 'array-contains', uid).get();
     snap.docs.forEach((d) => writer.delete(d.ref));
   }
-  (await db.collection('bonusAnswers').where('uid', '==', uid).get()).docs.forEach((d) => writer.delete(d.ref));
+  for (const col of ['bonusAnswers', 'trophies']) {
+    (await db.collection(col).where('uid', '==', uid).get()).docs.forEach((d) => writer.delete(d.ref));
+  }
   if (u.exists && u.data().nickname) writer.delete(db.collection('nicknames').doc(u.data().nickname.toLowerCase()));
   writer.delete(users.doc(uid));
   writer.delete(privates.doc(uid));
@@ -393,6 +400,7 @@ app.get('/api/leagues/:code/board', requireUser, wrap(async (req, res) => {
       uid: d.id, nickname: u.nickname, avatar: u.avatar, club: u.club || null,
       season: (cs.points || 0) - settledGw + gw + live, gw: gw + live, live,
       streak: cs.streak || 0, level: u.stats?.level || 1, picked: mine.length,
+      trophies: Object.values(u.trophies || {}).reduce((s, n) => s + n, 0),
     };
   });
 

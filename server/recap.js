@@ -2,6 +2,7 @@
 // "gameweek wrapped" message in each league's chat naming the week's podium.
 import { db, FieldValue } from './firebase.js';
 import { gameweekComplete, rankRows, GAMES, roundLabel } from '../src/lib/game.js';
+import { awardRoundWinners } from './trophies.js';
 
 export { gameweekComplete };
 
@@ -140,6 +141,12 @@ async function wrapCompetition(matches, competition, now) {
     if (podium.length) text += ` ${podium.join(', ')}.`;
     const sniper = ranked.map((r) => ({ ...r, exact: exacts[r.uid] })).sort((x, y) => y.exact - x.exact)[0];
     if (sniper?.exact >= 2) text += ` 🎯 Sharpshooter: ${sniper.nickname} with ${sniper.exact} exact scores.`;
+    // A trophy needs someone to beat: two or more players, and points on the board.
+    const trophyWinners = ranked.length >= 2 ? winners.filter((w) => w.points > 0) : [];
+    if (trophyWinners.length) {
+      await awardRoundWinners({ competition, md, league: l.id, leagueName: l.data().name, winners: trophyWinners });
+      text += ` ${competition === 'CL' ? '⭐' : '🏅'} Trophy for the cabinet!`;
+    }
     text += ' Check your recap on the Predict tab!';
     await l.ref.collection('messages').doc(competition === 'PL' ? `gw_${md}` : `gw_${competition}_${md}`).set({
       type: 'system', event: 'wrap', text, matchday: md, competition, createdAt: FieldValue.serverTimestamp(), reactions: {},

@@ -34,6 +34,8 @@ describe('gameweek wrap', () => {
     expect(msg.text).toContain('2nd BenTen');
     expect(msg.text).toContain('Sharpshooter: AnnGoals with 3 exact scores');
     expect(msg.text).not.toContain('CatKeeper');
+    expect(msg.text).toContain('🏅 Trophy for the cabinet!');
+    expect((await db.doc('trophies/gw_PL_md8_LEAGUE_ann').get()).data()).toMatchObject({ type: 'gw', leagueName: 'Year 8 Legends' });
     expect(await wrapGameweek(matches)).toBe(null);
   });
 });

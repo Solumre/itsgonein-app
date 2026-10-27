@@ -241,3 +241,49 @@ export function scoreBonus(answers = {}, gwMatches, custom) {
   };
   return { correct, points, total: points.goals + points.goalfest + points.nil + points.custom, customPending: !!custom?.question && custom.answer == null };
 }
+
+// ---- Trophies (won inside a league) ----
+export const TROPHIES = {
+  gw: { emoji: '🏅', name: 'Gameweek winner', desc: 'Top of a league for a Premier League gameweek' },
+  ucl_round: { emoji: '⭐', name: 'UCL round winner', desc: 'Top of a league for a Champions League round' },
+  month: { emoji: '🥇', name: 'Player of the Month', desc: 'Most Premier League points in a league in a month' },
+  champion: { emoji: '🏆', name: 'League champion', desc: 'Top of a league at the end of the season' },
+  boot: { emoji: '👟', name: 'Golden Boot', desc: 'Most exact scores in a league in a season' },
+  ucl_champion: { emoji: '🌟', name: 'UCL champion', desc: "Top of a league's Champions League table after the final" },
+};
+
+const LONDON = 'Europe/London';
+// "2026-10" for a time, in UK time (a 10pm game on the 31st counts as that month).
+export function monthKey(ms) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: LONDON, year: 'numeric', month: '2-digit' }).formatToParts(new Date(ms));
+  return `${parts.find((p) => p.type === 'year').value}-${parts.find((p) => p.type === 'month').value}`;
+}
+export const monthName = (key) => new Date(`${key}-15T12:00:00Z`).toLocaleString('en-GB', { month: 'long', timeZone: LONDON });
+
+// Gameweeks belong to the month their last game was played in. A month can be awarded
+// once it's over and no gameweek that started in it is still unfinished.
+export function monthToAward(matches, now) {
+  const current = monthKey(now);
+  const byMd = new Map();
+  for (const m of matches) {
+    if (m.matchday == null || m.status === 'postponed') continue;
+    const t = new Date(m.kickoff).getTime();
+    const r = byMd.get(m.matchday) || { first: Infinity, last: 0, done: true };
+    r.first = Math.min(r.first, t);
+    r.last = Math.max(r.last, t);
+    if (m.status !== 'finished') r.done = false;
+    byMd.set(m.matchday, r);
+  }
+  const months = [...new Set([...byMd.values()].filter((r) => r.done).map((r) => monthKey(r.last)))].filter((k) => k < current).sort();
+  const month = months.at(-1);
+  if (!month) return null;
+  if ([...byMd.values()].some((r) => !r.done && monthKey(r.first) <= month)) return null; // still waiting on a game
+  const mds = [...byMd].filter(([, r]) => r.done && monthKey(r.last) === month).map(([md]) => md).sort((a, b) => a - b);
+  return { month, mds };
+}
+
+export function seasonLabel(matches) {
+  const first = Math.min(...matches.map((m) => new Date(m.kickoff).getTime()));
+  const y = new Date(first).getUTCFullYear();
+  return `${y}/${String((y + 1) % 100).padStart(2, '0')}`;
+}
