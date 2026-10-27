@@ -9,6 +9,7 @@ import { wrapGameweek } from './recap.js';
 import { settleChallenges } from './h2h.js';
 import { bonusForUser, bonusPlayers } from './bonus.js';
 import { awardMonthly, awardSeason } from './trophies.js';
+import { findHighlights } from './highlights.js';
 
 const synced = new Map(); // matchId -> fingerprint of what Firestore holds
 let loaded = false;
@@ -241,6 +242,7 @@ export function startSyncLoop() {
       await syncNow();
       const matches = await gameMatches();
       await sendDueReminders({ matches }).catch((e) => console.error('reminders failed:', e.message));
+      await findHighlights({ matches }).catch((e) => console.error('highlights failed:', e.message));
       const now = Date.now();
       if (matches.some((m) => m.status === 'live' || (m.status === 'upcoming' && Math.abs(new Date(m.kickoff) - now) < 30 * 60_000))) delay = 60_000;
     } catch (e) {

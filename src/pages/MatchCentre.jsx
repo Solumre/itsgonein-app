@@ -10,6 +10,7 @@ import Crest from '../components/Crest';
 import Avatar from '../components/Avatar';
 import Confetti from '../components/Confetti';
 import { Spinner, ErrorBox } from '../components/Bits';
+import Video from '../components/Video';
 
 const EVENT_ICON = { goal: '⚽', penalty: '⚽', own_goal: '⚽', yellow: '🟨', second_yellow: '🟨🟥', red: '🟥', sub: '🔁' };
 const isLive = (d) => d?.match?.status === 'live'
@@ -126,6 +127,17 @@ function Picks({ mine, mates, m, canPick }) {
   );
 }
 
+function Highlights({ h }) {
+  if (!h?.videoId) return null;
+  return (
+    <section className="card mc-highlights">
+      <h2 className="section-title">📺 Highlights</h2>
+      <Video id={h.videoId} title={h.title} />
+      <p className="hint">{h.channel ? `${h.channel} · ` : ''}<a href={`https://www.youtube.com/watch?v=${h.videoId}`} target="_blank" rel="noreferrer">Watch on YouTube</a></p>
+    </section>
+  );
+}
+
 function FormAndHistory({ form, h2h, m }) {
   const formRow = (side) => {
     const r = form?.[side];
@@ -203,6 +215,7 @@ export default function MatchCentre() {
         <ArrowLeft size={16} /> Back
       </button>
       <Scoreboard m={m} past={data.past} />
+      <Highlights h={data.highlight} />
       {user && !data.past && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} />}
       <Timeline events={m.events} m={m} />
       <Lineups lineups={m.lineups} m={m} />

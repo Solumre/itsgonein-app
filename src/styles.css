@@ -269,7 +269,7 @@ p { margin: 0; }
 .field { display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; min-width: 0; }
 .field > span, .field legend { font: 700 14px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-bottom: 4px; padding: 0; }
 .field small { color: var(--faint); font-size: 14px; }
-.field input, .field select, .row-form input, .field-row input {
+.field input, .field select, .row-form input, .row-form select, .field-row input {
   width: 100%; min-height: 50px; padding: 0 14px; border-radius: 12px;
   border: 1px solid var(--line-2); background: var(--card-2); font-size: 17px; font-weight: 600;
 }
@@ -797,3 +797,23 @@ a.fixture:hover { background: var(--card-2); }
 .round-nav { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 4px 0 2px; }
 .round-nav .eyebrow { min-width: 9em; text-align: center; }
 .round-back { display: block; margin: 0 auto 8px; }
+
+/* Highlights videos */
+.video { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000; }
+.video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.video-cover { display: block; padding: 0; border: 0; cursor: pointer; background: linear-gradient(135deg, var(--accent), #0b0f14); }
+.video-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.video-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: #ff0033; color: #fff; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5); transition: transform 0.15s; }
+.video-cover:hover .video-play, .hl-card:hover .video-play { transform: translate(-50%, -50%) scale(1.08); }
+.video-play.sm { width: 36px; height: 36px; font-size: 14px; }
+.mc-highlights .hint a { color: inherit; }
+.hl-strip { margin-bottom: 16px; }
+.hl-row { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+.hl-card { flex: 0 0 200px; scroll-snap-align: start; border-radius: 12px; overflow: hidden; background: var(--card); color: inherit; text-decoration: none; }
+.hl-thumb { position: relative; display: block; aspect-ratio: 16 / 9; background: #000 center / cover no-repeat; }
+.hl-score { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px; font-weight: 700; font-size: 14px; }
+.admin-list { list-style: none; padding: 0; margin: 0 0 10px; }
+.admin-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.admin-list small { color: var(--dim); }
+.row-form select { flex: 1 1 140px; min-width: 0; }
+.row-form + .row-form, .card > .row-form + .btn { margin-top: 8px; }
