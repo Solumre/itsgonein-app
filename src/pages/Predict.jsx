@@ -62,8 +62,11 @@ function MatchCard({ m, pick, now, onPick, onDouble, doubleLocked, isDouble }) {
           : done ? <span className="meta-ft">FT</span>
             : m.status === 'postponed' ? <span className="meta-ft">Postponed</span>
               : <span>{dayLabel(m.kickoff)} · {timeLabel(m.kickoff)}</span>}
-        {open && ms < 3 * 3600_000 && <span className="lock-soon"><Lock size={12} /> locks in {countdown(ms)}</span>}
-        {!open && !live && !done && m.status !== 'postponed' && <span className="lock-soon"><Lock size={12} /> locked</span>}
+        <span className="meta-right">
+          {open && ms < 3 * 3600_000 && <span className="lock-soon"><Lock size={12} /> locks in {countdown(ms)}</span>}
+          {!open && !live && !done && m.status !== 'postponed' && <span className="lock-soon"><Lock size={12} /> locked</span>}
+          <Link to={`/match/${m.id}?c=${m.competition}`} className="mc-link">Match centre ›</Link>
+        </span>
       </div>
 
       <div className="match-row">

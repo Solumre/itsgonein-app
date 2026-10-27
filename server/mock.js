@@ -168,8 +168,74 @@ function standings(code, now) {
 const SCORER_NAMES = ['Erling Haaland', 'Mohamed Salah', 'Bukayo Saka', 'Cole Palmer', 'Ollie Watkins', 'Alexander Isak', 'Bryan Mbeumo', 'Jarrod Bowen', 'Chris Wood', 'Dominic Solanke', 'Jean-Philippe Mateta', 'Yoane Wissa'];
 const SCORER_TEAMS = ['MCI', 'LIV', 'ARS', 'CHE', 'AVL', 'NEW', 'MUN', 'WHU', 'NOT', 'TOT', 'CRY', 'BRE'];
 
+// Match detail as a paid plan returns it (goals, cards, subs, line-ups), so the match
+// centre can be tried locally.
+const SURNAMES = ['Smith', 'Silva', 'Jones', 'Okafor', 'Müller', 'García', 'Kane', 'Rossi', 'Diallo', 'Murphy', 'Costa', 'Nakamura', 'Walker', 'Dias', 'Reid', 'Kovač'];
+function squad(team) {
+  const r = rng(team[0] * 31);
+  return Array.from({ length: 16 }, (_, i) => ({ id: team[0] * 100 + i, name: `${'ABCDEFGHJKLMNPRS'[Math.floor(r() * 16)]}. ${SURNAMES[Math.floor(r() * SURNAMES.length)]}`, shirtNumber: i + 1, position: i === 0 ? 'Goalkeeper' : i < 5 ? 'Defence' : i < 8 ? 'Midfield' : i < 11 ? 'Offence' : null }));
+}
+function findMock(id) {
+  for (const code of Object.keys(LEAGUES)) {
+    const m = season(code).find((x) => String(x.id) === String(id));
+    if (m) return { m, code };
+  }
+  return null;
+}
+function matchDetail(id, now) {
+  const found = findMock(id);
+  if (!found) return null;
+  const { m, code } = found;
+  const json = matchJson(m, code, now);
+  const st = matchState(m, now);
+  const upTo = st.status === 'FINISHED' ? 90 : st.minute || 0;
+  const players = { home: squad(m.home), away: squad(m.away) };
+  const teamOf = (side) => ({ id: m[side][0], name: m[side][1] });
+  const running = { home: 0, away: 0 };
+  json.goals = m.goalMinutes.filter(([, min]) => min <= upTo).sort((a, b) => a[1] - b[1]).map(([side, min], i) => {
+    running[side]++;
+    const pool = players[side].slice(5, 11);
+    return { minute: min, injuryTime: null, type: i === 2 ? 'PENALTY' : 'REGULAR', team: teamOf(side),
+      scorer: pool[(min + i) % pool.length], assist: i % 2 ? pool[(min + 1) % pool.length] : null, score: { ...running } };
+  });
+  json.bookings = st.status === 'TIMED' ? [] : [[34, 'home'], [61, 'away']].filter(([min]) => min <= upTo)
+    .map(([min, side]) => ({ minute: min, team: teamOf(side), player: players[side][3], card: 'YELLOW' }));
+  json.substitutions = st.status === 'TIMED' ? [] : [[66, 'home'], [72, 'away']].filter(([min]) => min <= upTo)
+    .map(([min, side]) => ({ minute: min, team: teamOf(side), playerOut: players[side][9], playerIn: players[side][12] }));
+  for (const side of ['home', 'away']) {
+    const key = side === 'home' ? 'homeTeam' : 'awayTeam';
+    json[key] = { ...json[key], formation: '4-3-3', coach: { name: `${m[side][1]} Manager` }, lineup: players[side].slice(0, 11), bench: players[side].slice(11) };
+  }
+  json.venue = `${m.home[1]} Stadium`;
+  json.referees = [{ name: 'M. Oliver', type: 'REFEREE' }];
+  return json;
+}
+function head2head(id) {
+  const found = findMock(id);
+  if (!found) return { matches: [] };
+  const { m } = found;
+  const r = rng(m.home[0] * m.away[0]);
+  const matches = Array.from({ length: 6 }, (_, i) => {
+    const [h, a] = i % 2 ? [m.away, m.home] : [m.home, m.away];
+    return { id: 900000 + i, utcDate: new Date(START - (i + 1) * 180 * DAY).toISOString(), status: 'FINISHED', competition: { code: 'PL' },
+      homeTeam: toTeam(h), awayTeam: toTeam(a), score: { fullTime: { home: Math.floor(r() * 4), away: Math.floor(r() * 3) } } };
+  });
+  const wins = (team) => matches.filter((x) => {
+    const { home, away } = x.score.fullTime;
+    return (x.homeTeam.id === team[0] && home > away) || (x.awayTeam.id === team[0] && away > home);
+  }).length;
+  const draws = matches.filter((x) => x.score.fullTime.home === x.score.fullTime.away).length;
+  return { aggregates: { numberOfMatches: matches.length, homeTeam: { wins: wins(m.home), draws }, awayTeam: { wins: wins(m.away) } }, matches };
+}
+
 export function mockFeed(path) {
   const now = Date.now();
+  const matchPath = path.split('?')[0].match(/^\/matches\/(\d+)(\/head2head)?$/);
+  if (matchPath) {
+    const out = matchPath[2] ? head2head(matchPath[1]) : matchDetail(matchPath[1], now);
+    if (!out) throw new Error('football-data 404 for ' + path);
+    return out;
+  }
   const [, , code, kind] = path.split('?')[0].split('/');
   if (!LEAGUES[code]) return { matches: [], standings: [], scorers: [], teams: [] };
   if (kind === 'matches') return { matches: season(code).map((m) => matchJson(m, code, now)) };

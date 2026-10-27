@@ -16,6 +16,7 @@ import Join from './pages/Join';
 import Live from './pages/Live';
 import Me from './pages/Me';
 import Parent from './pages/Parent';
+import MatchCentre from './pages/MatchCentre';
 
 const Admin = lazy(() => import('./pages/Admin'));
 
@@ -31,10 +32,10 @@ function Ticker({ matches }) {
   const items = [
     ...(message ? [<span key="msg" className="ticker-msg">📢 {message}</span>] : []),
     ...live.map((m) => (
-      <span key={m.id} className="ticker-item">
+      <Link key={m.id} to={`/match/${m.id}?c=${m.competition}`} className="ticker-item">
         {m.competition === 'CL' && '⭐ '}{m.home.tla} <b>{m.score?.home}–{m.score?.away}</b> {m.away.tla}
         <small>{m.paused ? 'HT' : m.minute ? `${m.minute}'` : 'LIVE'}</small>
-      </span>
+      </Link>
     )),
   ];
   return (
@@ -136,6 +137,7 @@ export default function App() {
             <Route path="/leagues" element={inShell(<Leagues />)} />
             <Route path="/leagues/:code" element={inShell(<League />)} />
             <Route path="/live" element={inShell(<Live />, false)} />
+            <Route path="/match/:id" element={inShell(<MatchCentre />, false)} />
             <Route path="/me" element={inShell(<Me />)} />
             <Route path="/admin" element={inShell(<Suspense fallback={<Spinner />}><Admin /></Suspense>)} />
             <Route path="*" element={<Navigate to="/" replace />} />
