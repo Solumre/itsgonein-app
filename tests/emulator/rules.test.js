@@ -108,7 +108,7 @@ describe('everything else is read-only from the app', () => {
 
 describe('server-only data', () => {
   it('keeps quiz answers, quiz scores, live picks and highlights away from the app', async () => {
-    for (const path of ['quizzes/2026-10-31', 'quizPlays/2026-10-31_alice', 'livePicks/m2_next_0-0_alice', 'highlights/m2']) {
+    for (const path of ['quizzes/2026-10-31', 'quizPlays/2026-10-31_alice', 'livePicks/m2_next_0-0_alice', 'highlights/m2', 'penGames/g1']) {
       await assertFails(getDoc(doc(alice(), path)));
       await assertFails(setDoc(doc(alice(), path), { uid: 'alice', score: 5 }));
     }

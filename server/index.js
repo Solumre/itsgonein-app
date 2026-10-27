@@ -13,6 +13,7 @@ import { buildRecap, gameweekComplete } from './recap.js';
 import { createChallenge, respondChallenge, cancelChallenge, listChallenges, openRound } from './h2h.js';
 import { listTrophies } from './trophies.js';
 import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion } from './quiz.js';
+import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
 import { findHighlights, getHighlight, latestHighlights, getChannels, setChannels, resolveChannel, saveHighlight, videoIdFrom } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
@@ -186,6 +187,30 @@ async function liveFor(uid, match, memberIds, people) {
   if (!open.length && !history.length) return null;
   return { open, history, board, points: history.reduce((s, h) => s + h.points, 0) };
 }
+
+// --- penalty shootout ----------------------------------------------------------------------
+app.get('/api/pens', requireUser, wrap(async (req, res) => {
+  const uid = req.user.uid;
+  const ids = [...new Set((await leagues.where('members', 'array-contains', uid).get()).docs.flatMap((l) => l.data().members))].filter((u) => u !== uid);
+  const [stats, best, people] = await Promise.all([penStats(uid), bestToday(ids), ids.length ? db.getAll(...ids.map((u) => users.doc(u))) : []]);
+  const mates = people.filter((d) => d.exists && best[d.id])
+    .map((d) => ({ uid: d.id, nickname: d.data().nickname, avatar: d.data().avatar, ...best[d.id] }))
+    .sort((a, b) => b.points - a.points || a.nickname.localeCompare(b.nickname));
+  const { xp, ...rest } = stats; // eslint-disable-line no-unused-vars
+  res.set('Cache-Control', 'no-store');
+  res.json({ stats: rest, mates });
+}));
+
+app.post('/api/pens', requireUser, wrap(async (req, res) => {
+  if (!rateLimit(`pens:${req.user.uid}`, { max: 40, windowMs: 60 * 60_000 })) fail(429, 'Take a break! Try again in a bit.');
+  res.json(await startGame(req.user.uid));
+}));
+
+app.post('/api/pens/:id/kick', requireUser, wrap(async (req, res) => {
+  const r = await penKick({ uid: req.user.uid, id: req.params.id, type: String(req.body?.type || ''), col: Number(req.body?.col), row: Number(req.body?.row ?? 1), over: !!req.body?.over });
+  if (r.done) await recomputeUser(req.user.uid, matchesByCompetition(await gameMatches())).catch((e) => console.error('pens xp', e.message));
+  res.json(r);
+}));
 
 // --- daily quiz -------------------------------------------------------------------------
 const loadQuizData = async () => {
