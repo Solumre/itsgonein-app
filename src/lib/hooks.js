@@ -96,3 +96,12 @@ export function useIncomingChallenges(uid) {
   const { data } = useSnapshot(ref);
   return (data || []).filter((c) => c.to === uid).length;
 }
+
+// The browser tab title for a page ("How to play · ItsGoneIn").
+export function useTitle(title) {
+  useEffect(() => {
+    const before = document.title;
+    if (title) document.title = `${title} · ItsGoneIn`;
+    return () => { document.title = before; };
+  }, [title]);
+}

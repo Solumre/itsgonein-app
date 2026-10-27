@@ -9,13 +9,16 @@ export default function Landing() {
     <div className="landing">
       <header className="landing-top">
         <span className="brand">ITS<span>GONE</span>IN<i>.</i></span>
-        <Link to="/live" className="btn btn-ghost btn-sm">Scores &amp; tables</Link>
+        <nav className="landing-links">
+          <Link to="/how-to">How to play</Link>
+          <Link to="/live" className="btn btn-ghost btn-sm">Scores &amp; tables</Link>
+        </nav>
       </header>
 
       <section className="hero">
-        <p className="eyebrow">Premier League predictor</p>
+        <p className="eyebrow">Premier League &amp; Champions League predictor</p>
         <h1>Call the score.<br /><em>Beat your mates.</em></h1>
-        <p className="hero-sub">Predict every Premier League game, run a league with your friends and talk about it as the goals go in.</p>
+        <p className="hero-sub">Predict every game, run a league with your friends and talk about it as the goals go in. Free, safe and made for young fans.</p>
         <button className="btn btn-google" onClick={go}>
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" /><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" /></svg>
           Sign in with Google
@@ -28,10 +31,21 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="steps-row" aria-label="How it works">
+        <div><b>1</b><h3>Sign in</h3><p>Pick a nickname and your club. The app turns your colours.</p></div>
+        <div><b>2</b><h3>Call the scores</h3><p>Every Premier League and Champions League game, before kickoff.</p></div>
+        <div><b>3</b><h3>Beat your mates</h3><p>Make a league, share the code, watch the table move as the goals go in.</p></div>
+      </section>
+
       <section className="features">
-        <article><span>🎯</span><h3>Predict every game</h3><p>3 points for the exact score, 1 for the right result. Use your Double Up once a week.</p></article>
-        <article><span>🏆</span><h3>Leagues with your mates</h3><p>Make a league, share the code, and watch the table change live as the goals go in.</p></article>
-        <article><span>🎨</span><h3>Your club, your colours</h3><p>Pick your club and the whole app turns your colours. Earn badges and level up.</p></article>
+        <article><span>🎯</span><h3>Predict every game</h3><p>3 points for the exact score, 1 for the right result. Double Up once a gameweek, plus bonus questions.</p></article>
+        <article><span>🏆</span><h3>Leagues with your mates</h3><p>A live table, head-to-head challenges, trophies, and a chat where you can react to each other&apos;s picks.</p></article>
+        <article><span>📺</span><h3>Match centre</h3><p>Live scores, goals, cards and line-ups, previews before the game and highlights after.</p></article>
+        <article><span>⚡</span><h3>Live picks</h3><p>Who scores next? Goal before half-time? Quick questions during the game for extra XP.</p></article>
+        <article><span>🧠</span><h3>Daily quiz</h3><p>Five football questions every day. Keep your streak going and top your mates.</p></article>
+        <article><span>🥅</span><h3>Penalty shootout</h3><p>Pick your corner, beat the keeper, then dive to save. Something to do when nothing&apos;s on.</p></article>
+        <article><span>🎨</span><h3>Your club, your colours</h3><p>The whole app takes on your club&apos;s colours. Earn badges and level up from Sunday League to GOAT.</p></article>
+        <article><span>⭐</span><h3>Champions League too</h3><p>A separate table in every league for the Champions League, all the way to the final.</p></article>
       </section>
 
       <section className="safety-note">
@@ -41,10 +55,15 @@ export default function Landing() {
           <li>Nicknames only: no real names or photos are shown.</li>
           <li>Swearing, links and contact details are blocked. Anything can be reported.</li>
           <li>Players under 13 need a parent or carer to say OK.</li>
+          <li>No ads, no prizes, no betting and nothing to buy.</li>
         </ul>
+        <Link to="/how-to#parents" className="btn btn-ghost btn-sm">More for parents ›</Link>
       </section>
 
-      <footer className="landing-foot">Free to play. No prizes, no betting. Not affiliated with the Premier League or any club.</footer>
+      <footer className="landing-foot">
+        <nav><Link to="/how-to">How to play</Link> · <Link to="/how-to#faq">FAQ</Link> · <Link to="/live">Scores &amp; tables</Link></nav>
+        <p>Free to play. No prizes, no betting. Not affiliated with the Premier League, UEFA or any club.</p>
+      </footer>
     </div>
   );
 }

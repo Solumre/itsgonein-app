@@ -18,6 +18,7 @@ import Me from './pages/Me';
 import Parent from './pages/Parent';
 import MatchCentre from './pages/MatchCentre';
 import Quiz from './pages/Quiz';
+import HowTo from './pages/HowTo';
 import Penalties from './pages/Penalties';
 
 const Admin = lazy(() => import('./pages/Admin'));
@@ -114,6 +115,13 @@ function Home() {
   return <Landing />;
 }
 
+// The guide: in the app shell when signed in, standalone (like the landing page) when not.
+function HowToRoute() {
+  const { user, loading } = useSession();
+  if (loading && user === undefined) return <Spinner />;
+  return user ? <Shell><HowTo /></Shell> : <HowTo />;
+}
+
 function OnboardingRoute() {
   const { user, loading, needsProfile } = useSession();
   if (loading) return <Spinner />;
@@ -141,6 +149,7 @@ export default function App() {
             <Route path="/live" element={inShell(<Live />, false)} />
             <Route path="/match/:id" element={inShell(<MatchCentre />, false)} />
             <Route path="/quiz" element={inShell(<Quiz />)} />
+            <Route path="/how-to" element={<HowToRoute />} />
             <Route path="/penalties" element={inShell(<Penalties />)} />
             <Route path="/me" element={inShell(<Me />)} />
             <Route path="/admin" element={inShell(<Suspense fallback={<Spinner />}><Admin /></Suspense>)} />
