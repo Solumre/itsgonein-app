@@ -7,9 +7,10 @@ import { db, auth, FieldValue } from './firebase.js';
 import {
   COMPETITIONS, GAME_COMPETITION, GAME_COMPETITIONS, isCompetition, getMatches, getStandings, getScorers, getTeams, currentMatchday,
 } from './football.js';
-import { syncNow, startSyncLoop, toGameMatch, gameMatches } from './sync.js';
+import { syncNow, startSyncLoop, toGameMatch, gameMatches, recomputeUser, matchesByCompetition } from './sync.js';
 import { buildRecap, gameweekComplete } from './recap.js';
-import { createChallenge, respondChallenge, cancelChallenge, listChallenges } from './h2h.js';
+import { createChallenge, respondChallenge, cancelChallenge, listChallenges, openRound } from './h2h.js';
+import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
 import { scorePick, validDoubles, AVATARS, GAMES } from '../src/lib/game.js';
 
@@ -269,6 +270,7 @@ app.delete('/api/me', requireUser, wrap(async (req, res) => {
     const snap = await db.collection(col).where('players', 'array-contains', uid).get();
     snap.docs.forEach((d) => writer.delete(d.ref));
   }
+  (await db.collection('bonusAnswers').where('uid', '==', uid).get()).docs.forEach((d) => writer.delete(d.ref));
   if (u.exists && u.data().nickname) writer.delete(db.collection('nicknames').doc(u.data().nickname.toLowerCase()));
   writer.delete(users.doc(uid));
   writer.delete(privates.doc(uid));
@@ -370,6 +372,9 @@ app.get('/api/leagues/:code/board', requireUser, wrap(async (req, res) => {
   const picks = new Map(pickDocs.filter((d) => d.exists).map((d) => [d.id, d.data()]));
   const byId = new Map(all.map((m) => [m.id, toGameMatch(m)]));
   const now = Date.now();
+  // Scored bonus question points for this gameweek (Premier League only).
+  const bonusDocs = comp === 'PL' ? await db.getAll(...members.map((u) => db.collection('bonusAnswers').doc(`${u}_PL_${md}`))) : [];
+  const bonusBy = Object.fromEntries(bonusDocs.filter((d) => d.exists).map((d) => [d.data().uid, d.data().points || 0]));
 
   const rows = userDocs.filter((d) => d.exists).map((d) => {
     const u = d.data();
@@ -381,6 +386,7 @@ app.get('/api/leagues/:code/board', requireUser, wrap(async (req, res) => {
       if (m.status === 'finished') gw += p.points ?? scorePick(p, m.score, doubles.has(p.matchId));
       else if (m.status === 'live') live += scorePick(p, m.score, doubles.has(p.matchId));
     }
+    gw += bonusBy[d.id] || 0;
     const cs = u[statsKey] || {};
     const settledGw = cs.gw?.[md] || 0;
     return {
@@ -413,6 +419,43 @@ app.get('/api/recap', requireUser, wrap(async (req, res) => {
   const md = Number(req.query.matchday);
   if (!Number.isInteger(md) || !gameweekComplete(matches, md)) fail(400, "That round isn't finished yet.");
   res.json({ recap: await buildRecap(req.user.uid, md, matches, comp) });
+}));
+
+// --- bonus questions ----------------------------------------------------------------------
+const mdParam = (v) => {
+  const md = Number(v);
+  if (!Number.isInteger(md) || md < 1) fail(400, 'Which gameweek?');
+  return md;
+};
+
+app.get('/api/bonus', requireUser, wrap(async (req, res) => {
+  res.json(await getBonus(req.user.uid, mdParam(req.query.matchday)));
+}));
+
+app.post('/api/bonus', requireUser, wrap(async (req, res) => {
+  if (!(await users.doc(req.user.uid).get()).exists) fail(403, 'Finish setting up your profile first.');
+  if (!rateLimit(`bonus:${req.user.uid}`, { max: 60, windowMs: 60_000 })) fail(429, 'Slow down a bit!');
+  res.json(await saveBonus(req.user.uid, mdParam(req.body?.matchday), req.body?.answers));
+}));
+
+app.get('/api/admin/bonus', requireUser, requireAdmin, wrap(async (_req, res) => {
+  const next = openRound(await getMatches('PL'));
+  res.json({ questions: await listCustomQuestions(), nextMatchday: next?.matchday ?? null });
+}));
+
+app.post('/api/admin/bonus', requireUser, requireAdmin, wrap(async (req, res) => {
+  await setCustomQuestion(mdParam(req.body?.matchday), req.body?.question, req.body?.options);
+  res.json({ ok: true });
+}));
+
+// Marking the answer re-scores everyone who answered that gameweek.
+app.post('/api/admin/bonus/:md/answer', requireUser, requireAdmin, wrap(async (req, res) => {
+  const md = mdParam(req.params.md);
+  await markCustomAnswer(md, req.body?.answer);
+  const byComp = matchesByCompetition(await gameMatches());
+  const uids = await bonusPlayers([md]);
+  for (const uid of uids) await recomputeUser(uid, byComp);
+  res.json({ ok: true, rescored: uids.size });
 }));
 
 // --- head-to-head challenges ----------------------------------------------------------

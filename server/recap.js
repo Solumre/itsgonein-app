@@ -54,6 +54,14 @@ export async function buildRecap(uid, md, allMatches, competition = 'PL') {
     }
   }
 
+  // Bonus questions (Premier League only), already scored when the gameweek settled.
+  let bonus = 0;
+  if (competition === 'PL') {
+    const b = await db.collection('bonusAnswers').doc(`${uid}_PL_${md}`).get();
+    bonus = b.exists ? b.data().points || 0 : 0;
+    points += bonus;
+  }
+
   // Leagues: where you finished this gameweek.
   const leagueDocs = (await db.collection('leagues').where('members', 'array-contains', uid).get()).docs;
   const memberIds = [...new Set(leagueDocs.flatMap((l) => l.data().members))];
@@ -83,7 +91,7 @@ export async function buildRecap(uid, md, allMatches, competition = 'PL') {
     nickname: me.data()?.nickname,
     avatar: me.data()?.avatar,
     club: me.data()?.club || null,
-    points, exact, results, picked: picks.size, games: gwMatches.length,
+    points, bonus, exact, results, picked: picks.size, games: gwMatches.length,
     best, leagues, percentile, average, players: all.length,
     streak: stats.streak || 0, level: overall.level || 1, seasonPoints: stats.points || 0,
   };

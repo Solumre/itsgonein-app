@@ -195,3 +195,49 @@ export function roundLabel(competition, md) {
   if (competition === 'CL') return CL_ROUND_NAMES[md] || `Matchday ${md}`;
   return `Gameweek ${md}`;
 }
+
+// ---- Weekly bonus questions (Premier League) ----
+// Three are generated from the fixtures, so they can be settled from scores alone.
+// An admin can add a fourth multiple-choice question each gameweek and mark it.
+export const BONUS_POINTS = { goals: { exact: 3, close: 1 }, goalfest: 2, nil: 1, custom: 2 };
+export const BONUS_MAX = 3 + 2 + 1 + 2;
+
+export function bonusQuestions(md, gwMatches, custom) {
+  const games = gwMatches.filter((m) => m.status !== 'postponed');
+  const qs = [
+    { id: 'goals', type: 'number', max: 60, text: `How many goals will be scored in Gameweek ${md}?`, hint: '3 pts exact · 1 pt within 2' },
+    { id: 'goalfest', type: 'choice', text: 'Which game will have the most goals?', hint: '2 pts',
+      options: games.map((m) => ({ id: String(m.id), label: `${m.home.tla} v ${m.away.tla}` })) },
+    { id: 'nil', type: 'choice', text: 'Will any game finish 0–0?', hint: '1 pt',
+      options: [{ id: 'yes', label: 'Yes' }, { id: 'no', label: 'No' }] },
+  ];
+  if (custom?.question) qs.push({ id: 'custom', type: 'choice', text: custom.question, hint: '2 pts', options: custom.options, custom: true });
+  return qs;
+}
+
+export function validBonusAnswer(q, value) {
+  if (!q) return false;
+  if (q.type === 'number') return Number.isInteger(value) && value >= 0 && value <= q.max;
+  return q.options.some((o) => o.id === value);
+}
+
+// Points for a set of answers once the gameweek is finished; null until then.
+// The custom question only scores once an admin has marked the answer.
+export function scoreBonus(answers = {}, gwMatches, custom) {
+  const md = gwMatches[0]?.matchday;
+  if (md == null || !gameweekComplete(gwMatches, md)) return null;
+  const done = gwMatches.filter((m) => m.status === 'finished' && m.score);
+  const totals = done.map((m) => ({ id: String(m.id), goals: m.score.home + m.score.away }));
+  const goals = totals.reduce((s, t) => s + t.goals, 0);
+  const most = Math.max(...totals.map((t) => t.goals));
+  const goalfest = totals.filter((t) => t.goals === most).map((t) => t.id);
+  const nil = done.some((m) => m.score.home === 0 && m.score.away === 0) ? 'yes' : 'no';
+  const correct = { goals, goalfest, nil, custom: custom?.answer ?? null };
+  const points = {
+    goals: answers.goals == null ? 0 : answers.goals === goals ? BONUS_POINTS.goals.exact : Math.abs(answers.goals - goals) <= 2 ? BONUS_POINTS.goals.close : 0,
+    goalfest: goalfest.includes(answers.goalfest) ? BONUS_POINTS.goalfest : 0,
+    nil: answers.nil === nil ? BONUS_POINTS.nil : 0,
+    custom: custom?.answer != null && answers.custom === custom.answer ? BONUS_POINTS.custom : 0,
+  };
+  return { correct, points, total: points.goals + points.goalfest + points.nil + points.custom, customPending: !!custom?.question && custom.answer == null };
+}

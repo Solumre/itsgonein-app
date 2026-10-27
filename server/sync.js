@@ -7,6 +7,7 @@ import { computeStats, competitionOf, levelFor } from '../src/lib/game.js';
 import { sendDueReminders } from './reminders.js';
 import { wrapGameweek } from './recap.js';
 import { settleChallenges } from './h2h.js';
+import { bonusForUser, bonusPlayers } from './bonus.js';
 
 const synced = new Map(); // matchId -> fingerprint of what Firestore holds
 let loaded = false;
@@ -124,8 +125,12 @@ export async function recomputeUser(uid, byComp) {
   const pl = computeStats(picks.filter((p) => competitionOf(p) === 'PL'), byComp.PL, { clubTla });
   const cl = computeStats(picks.filter((p) => competitionOf(p) === 'CL'), byComp.CL || new Map(), { clubTla });
   // Badges come from the Premier League; Champions League points still earn XP.
-  const xp = pl.stats.xp + cl.stats.points * 10 + cl.stats.played * 2;
-  const stats = { ...pl.stats, xp, level: levelFor(xp).level };
+  // Bonus question points go into the Premier League gameweek and season totals.
+  const bonus = await bonusForUser(uid, [...byComp.PL.values()]);
+  const gwWithBonus = { ...pl.stats.gw };
+  for (const [md, pts] of Object.entries(bonus.gw)) gwWithBonus[md] = (gwWithBonus[md] || 0) + pts;
+  const xp = pl.stats.xp + bonus.total * 10 + cl.stats.points * 10 + cl.stats.played * 2;
+  const stats = { ...pl.stats, points: pl.stats.points + bonus.total, gw: gwWithBonus, bonus: bonus.total, xp, level: levelFor(xp).level };
   const { points, played, exact, results, streak, bestStreak, gw } = cl.stats;
   const statsCL = { points, played, exact, results, streak, bestStreak, gw };
   const perPick = { ...pl.perPick, ...cl.perPick };
@@ -144,6 +149,9 @@ async function settle(finished, allMatches) {
   const byComp = matchesByCompetition(allMatches);
   const uids = new Set();
   for (const m of finished) for (const p of await picksFor(m.id)) uids.add(p.uid);
+  // Bonus questions score when a gameweek finishes, even for players with no pick in its last game.
+  const plDays = finished.filter((m) => m.competition === 'PL').map((m) => m.matchday);
+  for (const uid of await bonusPlayers(plDays)) uids.add(uid);
   for (const uid of uids) await recomputeUser(uid, byComp);
   const batch = db.batch();
   for (const m of finished) {
