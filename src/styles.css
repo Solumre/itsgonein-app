@@ -601,3 +601,18 @@ p { margin: 0; }
 .report header small { color: var(--dim); }
 .report-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .admin .card { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---------- reminders ---------- */
+.setting-col { flex-direction: column; align-items: stretch; gap: 4px; }
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; }
+.switch-row span { display: inline-flex; align-items: center; gap: 8px; }
+.switch { appearance: none; -webkit-appearance: none; flex: none; width: 50px; height: 30px; border-radius: 999px; background: var(--line-2); position: relative; cursor: pointer; transition: background 0.15s; margin: 0; }
+.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.15s; }
+.switch:checked { background: var(--accent); }
+.switch:checked::after { transform: translateX(20px); }
+.switch:disabled { opacity: 0.4; cursor: not-allowed; }
+.reminder-card { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: start; border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.reminder-bell { font-size: 30px; grid-row: span 2; }
+.reminder-text strong { font: 800 20px/1.1 var(--display); text-transform: uppercase; }
+.reminder-text p { color: var(--dim); font-size: 15px; margin-top: 2px; }
+.reminder-actions { grid-column: 2; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }

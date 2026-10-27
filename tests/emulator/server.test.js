@@ -194,3 +194,14 @@ describe('deleting an account', () => {
     expect((await db.collection('predictions').where('uid', '==', kid.uid).get()).empty).toBe(true);
   });
 });
+
+describe('kick-off reminders setting', () => {
+  it('turns on with a device token and off again', async () => {
+    expect((await api(sam, 'POST', '/api/me/reminders', { on: true })).status).toBe(400);
+    expect((await api(sam, 'POST', '/api/me/reminders', { on: true, token: 'device-1' })).status).toBe(200);
+    await api(sam, 'POST', '/api/me/reminders', { on: true, token: 'device-2' });
+    expect((await db.doc(`private/${sam.uid}`).get()).data()).toMatchObject({ notifyKickoff: true, pushTokens: ['device-1', 'device-2'] });
+    await api(sam, 'POST', '/api/me/reminders', { on: false, token: 'device-1' });
+    expect((await db.doc(`private/${sam.uid}`).get()).data()).toMatchObject({ notifyKickoff: false, pushTokens: ['device-2'] });
+  });
+});

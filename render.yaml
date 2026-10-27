@@ -18,3 +18,7 @@ services:
         value: tm@solumre.com
       - key: VITE_ADMIN_EMAILS
         value: tm@solumre.com
+      - key: VITE_FCM_VAPID_KEY
+        sync: false
+      - key: APP_URL
+        value: https://itsgonein.com

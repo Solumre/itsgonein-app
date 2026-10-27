@@ -10,6 +10,7 @@ A Premier League score predictor for young fans (built for 10–15 year olds). P
 | **Leagues** | Create a league and share its 6-letter code or invite link. The table updates live during games, and the Picks grid shows everyone's picks once a game kicks off. |
 | **Chat** | One chat per league, with quick-chat buttons, reactions, and "share my pick". The app posts kickoff and full-time messages ("🎯 Sam nailed the exact score!"). |
 | **Your club** | The whole app takes on your club's colours (with contrast checks for navy or white kits). |
+| **Kick-off reminders** | Optional push notification an hour before each kickoff, only for games you haven't picked yet. |
 | **Progress** | XP, levels (Sunday League → GOAT), streaks and 11 badges. |
 | **Live** | Scores, tables and top scorers for the PL, Championship, Champions League and the big European leagues, plus a Player of the Week poll. |
 | **Admin** | Reports queue, delete/block, ticker message, Player of the Week poll, manual sync. |
@@ -67,8 +68,13 @@ npm run lint
 3. **Render**: create the service from `render.yaml` (or by hand: build `npm ci && npm run build`, start `npm start`) and set:
    - `FOOTBALL_DATA_KEY`: your football-data.org key
    - `FIREBASE_SERVICE_ACCOUNT`: the service account JSON, pasted as one line
+   - `VITE_FCM_VAPID_KEY`: for kick-off reminders. Firebase → Project settings → Cloud Messaging → Web Push certificates → Generate key pair, then copy the key pair string. It's a public key, so it's safe in the app.
+   - `APP_URL`: the site's address, used in notification links (default `https://itsgonein.com`)
    - `ADMIN_EMAILS`: comma-separated admin Google emails (set the same list as `VITE_ADMIN_EMAILS` so the app shows them the Admin link)
 4. **Keep it awake.** Render's free tier sleeps after 15 minutes, which delays results and makes the first visit slow. Point a free pinger (e.g. cron-job.org) at `https://<your-app>/api/health` every 10 minutes, or use Render's $7/month plan.
+
+### Kick-off reminders
+Players turn them on from the Me tab (or the prompt on Predict). The server's sync loop sends one push about an hour before each kickoff time to players who haven't picked those games, and drops tokens for devices that have gone. On iPhone, web push only works when ItsGoneIn is opened from the Home Screen (Share → Add to Home Screen, iOS 16.4+), and the app tells players so.
 
 ### Upgrading the data later
 The free football-data.org tier has slightly delayed scores and no minute-by-minute events. A paid plan (football-data.org, or API-Football from about $19/month) adds true live scores, goal scorers and lineups. Only `server/football.js` needs to change.
