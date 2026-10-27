@@ -4,6 +4,7 @@
 import { db, Timestamp, FieldValue } from './firebase.js';
 import { getMatches, GAME_COMPETITION } from './football.js';
 import { computeStats } from '../src/lib/game.js';
+import { sendDueReminders } from './reminders.js';
 
 const synced = new Map(); // matchId -> fingerprint of what Firestore holds
 let loaded = false;
@@ -198,6 +199,7 @@ export function startSyncLoop() {
     try {
       await syncNow();
       const matches = await getMatches(GAME_COMPETITION);
+      await sendDueReminders({ matches }).catch((e) => console.error('reminders failed:', e.message));
       const now = Date.now();
       if (matches.some((m) => m.status === 'live' || (m.status === 'upcoming' && Math.abs(new Date(m.kickoff) - now) < 30 * 60_000))) delay = 60_000;
     } catch (e) {

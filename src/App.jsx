@@ -4,6 +4,7 @@ import { Target, Trophy, Radio, UserRound, Shield } from 'lucide-react';
 import { SessionProvider, useSession } from './lib/session';
 import { useMatches, useTicker } from './lib/hooks';
 import { ToastProvider } from './components/Toast';
+import { PushListener } from './components/Reminders';
 import Avatar from './components/Avatar';
 import { Spinner } from './components/Bits';
 import Landing from './pages/Landing';
@@ -121,6 +122,7 @@ export default function App() {
     <BrowserRouter>
       <SessionProvider>
         <ToastProvider>
+          <PushListener />
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/welcome" element={<OnboardingRoute />} />

@@ -12,6 +12,7 @@ import { useToast } from '../components/Toast';
 import Crest from '../components/Crest';
 import Confetti from '../components/Confetti';
 import { Spinner, ErrorBox, Empty } from '../components/Bits';
+import { ReminderPrompt } from '../components/Reminders';
 
 const isOpen = (m, now) => m.status === 'upcoming' && new Date(m.kickoff).getTime() > now;
 
@@ -204,6 +205,8 @@ export default function Predict() {
           {pickedOpen < openCount && <button className="btn btn-ghost btn-sm" onClick={luckyDip}><Dices size={16} /> Lucky dip</button>}
         </div>
       )}
+
+      <ReminderPrompt show={Object.keys(saved).length > 0} />
 
       {gwMatches.length === 0 ? <Empty title="No games this gameweek" /> : (
         <div className="match-list">

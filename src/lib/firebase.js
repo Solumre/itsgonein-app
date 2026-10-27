@@ -13,7 +13,7 @@ const config = {
 };
 
 export const emulated = import.meta.env.VITE_USE_EMULATORS === '1';
-const app = initializeApp(emulated ? { ...config, projectId: 'demo-itgonein' } : config);
+export const app = initializeApp(emulated ? { ...config, projectId: 'demo-itgonein' } : config);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();

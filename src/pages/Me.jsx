@@ -11,6 +11,7 @@ import Sheet from '../components/Sheet';
 import ClubPicker from '../components/ClubPicker';
 import ParentCard from '../components/ParentCard';
 import { Segmented } from '../components/Bits';
+import { ReminderSwitch } from '../components/Reminders';
 
 function EditProfile({ profile, onDone }) {
   const { setPreviewClub } = useSession();
@@ -108,6 +109,7 @@ export default function Me() {
             { value: 'system', label: <><MonitorSmartphone size={14} /> Auto</> },
           ]} />
         </div>
+        <ReminderSwitch />
         <button className="action" onClick={() => setEditing(true)}><Pencil size={16} /> Change club, nickname or avatar</button>
         <button className="action" onClick={logOut}><LogOut size={16} /> Sign out</button>
       </section>

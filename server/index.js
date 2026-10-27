@@ -213,6 +213,26 @@ app.get('/api/parent', requireUser, wrap(async (req, res) => {
   res.json({ children: kids });
 }));
 
+// Kick-off reminders: turn on (adding this device's push token) or off.
+app.post('/api/me/reminders', requireUser, wrap(async (req, res) => {
+  const ref = privates.doc(req.user.uid);
+  const token = req.body?.token;
+  if (token != null && (typeof token !== 'string' || token.length > 4096)) fail(400, 'Bad token');
+  if (req.body?.on) {
+    if (!token) fail(400, 'Bad token');
+    await db.runTransaction(async (tx) => {
+      const p = await tx.get(ref);
+      if (!p.exists) fail(403, 'Finish setting up your profile first.');
+      // Keep the five most recent devices.
+      const tokens = [...(p.data().pushTokens || []).filter((t) => t !== token), token].slice(-5);
+      tx.update(ref, { notifyKickoff: true, pushTokens: tokens });
+    });
+  } else {
+    await ref.set({ notifyKickoff: false, ...(token && { pushTokens: FieldValue.arrayRemove(token) }) }, { merge: true });
+  }
+  res.json({ ok: true });
+}));
+
 app.post('/api/me/block', requireUser, wrap(async (req, res) => {
   const target = String(req.body?.uid || '');
   if (!target || target === req.user.uid) fail(400, 'Bad user');
