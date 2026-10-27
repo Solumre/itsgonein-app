@@ -182,7 +182,20 @@ function findMock(id) {
   }
   return null;
 }
+const pastMeetings = new Map(); // id -> raw match, filled by head2head()
+function pastDetail(x) {
+  const goals = [];
+  for (const side of ['home', 'away']) {
+    const team = side === 'home' ? x.homeTeam : x.awayTeam;
+    for (let g = 0; g < x.score.fullTime[side]; g++) goals.push({ minute: 10 + ((g * 23 + (side === 'home' ? 7 : 31)) % 80), type: 'REGULAR', team, scorer: { name: `${SURNAMES[(team.id + g) % SURNAMES.length]}` } });
+  }
+  goals.sort((a, b) => a.minute - b.minute);
+  const run = { home: 0, away: 0 };
+  for (const g of goals) { run[g.team.id === x.homeTeam.id ? 'home' : 'away']++; g.score = { ...run }; }
+  return { ...x, goals, bookings: [], substitutions: [], venue: `${x.homeTeam.name} Stadium`, referees: [{ name: 'A. Taylor', type: 'REFEREE' }] };
+}
 function matchDetail(id, now) {
+  if (pastMeetings.has(String(id))) return pastDetail(pastMeetings.get(String(id)));
   const found = findMock(id);
   if (!found) return null;
   const { m, code } = found;
@@ -217,7 +230,7 @@ function head2head(id) {
   const r = rng(m.home[0] * m.away[0]);
   const matches = Array.from({ length: 6 }, (_, i) => {
     const [h, a] = i % 2 ? [m.away, m.home] : [m.home, m.away];
-    return { id: 900000 + i, utcDate: new Date(START - (i + 1) * 180 * DAY).toISOString(), status: 'FINISHED', competition: { code: 'PL' },
+    return { id: 9_000_000 + Number(m.id) * 10 + i, utcDate: new Date(START - (i + 1) * 180 * DAY).toISOString(), status: 'FINISHED', competition: { code: 'PL' },
       homeTeam: toTeam(h), awayTeam: toTeam(a), score: { fullTime: { home: Math.floor(r() * 4), away: Math.floor(r() * 3) } } };
   });
   const wins = (team) => matches.filter((x) => {
@@ -225,6 +238,7 @@ function head2head(id) {
     return (x.homeTeam.id === team[0] && home > away) || (x.awayTeam.id === team[0] && away > home);
   }).length;
   const draws = matches.filter((x) => x.score.fullTime.home === x.score.fullTime.away).length;
+  for (const x of matches) pastMeetings.set(String(x.id), x);
   return { aggregates: { numberOfMatches: matches.length, homeTeam: { wins: wins(m.home), draws }, awayTeam: { wins: wins(m.away) } }, matches };
 }
 

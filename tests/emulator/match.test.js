@@ -75,6 +75,16 @@ describe('GET /api/match/:id', () => {
     expect(body.mates).toEqual({ revealed: false, picked: 1, total: 2 });
   });
 
+  it('opens a past meeting from the head-to-head list, without picks or this season\'s form', async () => {
+    const { body: now } = await get(`/api/match/${live.id}?competition=PL`, me);
+    const old = now.h2h.matches[0];
+    const r = await get(`/api/match/${old.id}?competition=${old.competition}`, me);
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ past: true, form: null, mine: null, mates: null, match: { id: old.id, status: 'finished', score: old.score } });
+    expect(r.body.match.events.filter((e) => e.kind === 'goal')).toHaveLength(old.score.home + old.score.away);
+    expect((await get(`/api/match/${old.id}?competition=FAC`)).status).toBe(200); // a cup we don't list
+  });
+
   it('404s an unknown match', async () => {
     expect((await get('/api/match/123?competition=PL')).status).toBe(404);
   });

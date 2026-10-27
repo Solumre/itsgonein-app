@@ -103,9 +103,18 @@ app.get('/api/scorers', wrap(async (req, res) => {
 // head-to-head and form, plus your pick and your league mates' picks once it kicks off.
 app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
   const id = String(req.params.id);
-  const comp = competition(req);
+  // Past meetings can be from cups we don't list; those are looked up by id alone below.
+  const asked = String(req.query.competition || '').toUpperCase();
+  const comp = isCompetition(asked) ? asked : GAME_COMPETITION;
   const base = (await getMatches(comp)).find((m) => m.id === id);
-  if (!base) fail(404, 'Match not found.');
+  if (!base) {
+    // Not in this season's fixtures: an older game, e.g. a past head-to-head meeting.
+    const old = await getMatchDetail(id, null).catch(() => null);
+    if (!old) fail(404, 'Match not found.');
+    const h2h = await getHead2Head(id).catch(() => null);
+    res.set('Cache-Control', 'public, max-age=3600');
+    return res.json({ match: old, h2h, form: null, mine: null, mates: null, past: true });
+  }
   const [detail, h2h, standings] = await Promise.all([
     getMatchDetail(id, comp).catch(() => null),
     getHead2Head(id).catch(() => null),
