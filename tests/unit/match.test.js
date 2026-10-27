@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeDetail } from '../../server/football.js';
+import { normalizeDetail, formFromMatches } from '../../server/football.js';
 
 const ars = { id: 57, name: 'Arsenal FC', shortName: 'Arsenal', tla: 'ARS', crest: 'a.png' };
 const che = { id: 61, name: 'Chelsea FC', shortName: 'Chelsea', tla: 'CHE', crest: 'c.png' };
@@ -41,5 +41,18 @@ describe('normalizeDetail', () => {
   it('leaves line-ups out until both teams are announced', () => {
     const d = normalizeDetail(raw({ homeTeam: { ...ars, lineup: [{ name: 'Raya' }] } }), 'PL');
     expect(d.lineups).toBeNull();
+  });
+});
+
+describe('formFromMatches', () => {
+  const g = (day, home, away, h, a, status = 'finished') => ({ kickoff: `2026-10-${String(day).padStart(2, '0')}T15:00:00Z`, status, home: { id: home }, away: { id: away }, score: status === 'finished' ? { home: h, away: a } : null });
+  it('gives the last five results per team, oldest first, ignoring unplayed games', () => {
+    const form = formFromMatches([
+      g(20, 1, 2, 0, 0), g(1, 1, 3, 2, 0), g(6, 4, 1, 1, 0), g(10, 1, 5, 3, 3), g(14, 6, 1, 0, 4), g(17, 1, 7, 1, 2), g(25, 1, 8, 0, 0, 'upcoming'),
+    ]);
+    expect(form.get(1)).toBe('LDWLD'); // the 1 Oct win has dropped off
+    expect(form.get(2)).toBe('D');
+    expect(form.get(4)).toBe('W');
+    expect(form.has(8)).toBe(false);
   });
 });
