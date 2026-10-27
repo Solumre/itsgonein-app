@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFeed, findHighlight, findPreview, channelsFor, videoIdFrom, teamNames } from '../../server/highlights.js';
+import { parseFeed, findHighlight, findPreview, channelsFor, videoIdFrom, teamNames, scanUploads, isHighlightTitle } from '../../server/highlights.js';
 
 const t = (name, tla) => ({ name, tla });
 const match = { id: '1', kickoff: '2026-10-31T12:30:00Z', status: 'finished', home: t('Chelsea', 'CHE'), away: t('Man United', 'MUN'), score: { home: 0, away: 1 } };
@@ -73,5 +73,44 @@ describe('channelsFor', () => {
     const chs = [{ id: 'a', competitions: ['PL'] }, { id: 'b', competitions: ['CL'] }, { id: 'c', competitions: [] }, { id: 'd' }];
     expect(channelsFor(chs, 'PL').map((c) => c.id)).toEqual(['a', 'c', 'd']);
     expect(channelsFor(chs, 'PD').map((c) => c.id)).toEqual(['c', 'd']);
+  });
+});
+
+describe('only real highlights', () => {
+  it('turns down clips and analysis that mention both teams', () => {
+    const villa = { ...match, home: t('Aston Villa', 'AVL'), away: t('Arsenal', 'ARS'), score: { home: 0, away: 1 } };
+    expect(findHighlight(villa, [v('"It\'s the dream of every coach!" | Gary Neville\'s verdict on Villa v Arsenal', 3)])).toBeNull();
+    expect(findHighlight(villa, [v('Arteta reacts to Villa 0-1 Arsenal', 3)])).toBeNull();
+    expect(isHighlightTitle('Aston Villa 0-1 Arsenal | Premier League Highlights')).toBe(true);
+    expect(isHighlightTitle('Neville and Carragher analysis: Villa v Arsenal')).toBe(false);
+  });
+  it('prefers the one with the right score', () => {
+    const got = findHighlight(match, [
+      v('Chelsea 1-1 Man Utd | Premier League Highlights (2024)', 2, 'wrongscore1'),
+      v('Chelsea 0-1 Man Utd | Premier League Highlights', 4, 'rightscore1'),
+    ]);
+    expect(got.videoId).toBe('rightscore1');
+  });
+});
+
+describe('scanUploads', () => {
+  const vid = (n, daysAgo) => ({ videoId: `v${n}`, title: `video ${n}`, published: new Date(Date.parse('2026-10-31T12:00:00Z') - daysAgo * 86400_000).toISOString() });
+  const pages = [
+    { items: [vid(9, 0), vid(8, 1), vid(7, 2)], next: 'p2' },
+    { items: [vid(6, 3), vid(5, 4), vid(4, 5)], next: 'p3' },
+    { items: [vid(3, 10), vid(2, 20)], next: null },
+  ];
+  const fetchPage = (calls) => async (token) => { calls.push(token ?? 'first'); return pages[{ undefined: 0, p2: 1, p3: 2 }[token]]; };
+  it('reads pages back to a date', async () => {
+    const calls = [];
+    const r = await scanUploads([], fetchPage(calls), { since: new Date('2026-10-25T00:00:00Z') });
+    expect(r.videos.map((x) => x.videoId)).toEqual(['v9', 'v8', 'v7', 'v6', 'v5', 'v4']);
+    expect(calls).toEqual(['first', 'p2', 'p3']);
+  });
+  it('tops up until it reaches a video it already has', async () => {
+    const calls = [];
+    const r = await scanUploads([vid(7, 2), vid(6, 3)], fetchPage(calls), { since: new Date('2026-01-01') });
+    expect(r.videos.map((x) => x.videoId)).toEqual(['v9', 'v8']);
+    expect(calls).toEqual(['first']);
   });
 });

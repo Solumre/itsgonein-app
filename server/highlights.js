@@ -73,17 +73,23 @@ export function findPreview(match, videos) {
   return fits.sort((a, b) => new Date(b.published) - new Date(a.published))[0] || null;
 }
 
-// The best video for a finished match: names both teams, posted from kickoff to 4 days after.
+// A title that is a game's highlights (not a clip, interview or analysis that mentions it).
+export const isHighlightTitle = (title) => /\bhighlights?\b/i.test(title)
+  && !/\b(preview|press conference|reaction|watchalong|analysis|interview|top 10|best of|goals of the|every goal|reacts?)\b/i.test(title);
+
+// The best highlights for a finished match: names both teams and says highlights, posted from
+// kickoff to 4 days after. One with the right score in the title is best.
 export function findHighlight(match, videos) {
   const ko = new Date(match.kickoff).getTime();
   const fits = videos.filter((v) => {
     const t = norm(v.title);
     const at = new Date(v.published).getTime();
-    return at >= ko && at <= ko + 4 * 86400_000 && mentions(t, match.home) && mentions(t, match.away)
-      && !/\b(preview|press conference|reaction|live|watchalong)\b/.test(t);
+    return at >= ko && at <= ko + 4 * 86400_000 && mentions(t, match.home) && mentions(t, match.away) && isHighlightTitle(v.title);
   });
-  const score = (v) => (/highlight/i.test(v.title) ? 2 : 0) + (/extended/i.test(v.title) ? 1 : 0);
-  return fits.sort((a, b) => score(b) - score(a) || new Date(a.published) - new Date(b.published))[0] || null;
+  const sc = match.score;
+  const hasScore = (v) => !!sc && new RegExp(`\\b${sc.home}\\s*[-–]\\s*${sc.away}\\b`).test(v.title);
+  const rank = (v) => (hasScore(v) ? 4 : 0) + (/extended/i.test(v.title) ? 1 : 0);
+  return fits.sort((a, b) => rank(b) - rank(a) || new Date(a.published) - new Date(b.published))[0] || null;
 }
 
 export function videoIdFrom(input) {
@@ -106,6 +112,65 @@ async function fetchFeed(channelId, matches) {
   const videos = parseFeed(xml);
   feedCache.set(channelId, { at: Date.now(), videos });
   return videos;
+}
+
+// ---- channel uploads (with YOUTUBE_API_KEY) ----
+// A channel's whole upload list, read newest first from its uploads playlist, 50 videos a
+// page for 1 quota unit. Stops at a date, or at a video already seen when topping up.
+export async function scanUploads(known, fetchPage, { since, maxPages = 300 }) {
+  const have = new Set(known.map((v) => v.videoId));
+  const out = [];
+  let token, pages = 0;
+  while (pages < maxPages) {
+    const page = await fetchPage(token);
+    pages++;
+    let stop = false;
+    for (const v of page.items) {
+      if (have.has(v.videoId) || new Date(v.published) < since) { stop = true; break; }
+      out.push(v);
+    }
+    if (stop || !page.next) break;
+    token = page.next;
+  }
+  return { videos: out, pages };
+}
+
+async function playlistPage(channelId, token) {
+  if (!(await spend(1))) throw new Error('YouTube budget used up for today');
+  const url = new URL('https://www.googleapis.com/youtube/v3/playlistItems');
+  Object.entries({ part: 'snippet,contentDetails', maxResults: '50', playlistId: `UU${channelId.slice(2)}`, key: API_KEY, ...(token && { pageToken: token }) })
+    .forEach(([k, v]) => url.searchParams.set(k, v));
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`YouTube uploads ${r.status}: ${(await r.text()).slice(0, 200)}`);
+  const j = await r.json();
+  return {
+    next: j.nextPageToken || null,
+    items: (j.items || []).map((it) => ({
+      videoId: it.contentDetails?.videoId, title: decode(it.snippet?.title || ''),
+      published: it.contentDetails?.videoPublishedAt || it.snippet?.publishedAt,
+    })).filter((v) => v.videoId && v.published && !/^(private|deleted) video$/i.test(v.title)),
+  };
+}
+
+const uploads = new Map(); // channel id -> { videos (newest first), from, at, job }
+// A channel's videos back to `since`: the full uploads list with an API key, else its feed.
+async function channelVideos(ch, since, matches) {
+  if (!API_KEY) return fetchFeed(ch.id, matches);
+  const c = uploads.get(ch.id);
+  if (c?.job) return c.job;
+  const job = (async () => {
+    if (!c || c.from > since) {
+      const { videos, pages } = await scanUploads([], (t) => playlistPage(ch.id, t), { since });
+      console.log(`uploads: ${ch.name} ${videos.length} videos (${pages} pages)`);
+      uploads.set(ch.id, { videos, from: since, at: Date.now() });
+    } else if (Date.now() - c.at > 10 * 60_000) {
+      const { videos } = await scanUploads(c.videos, (t) => playlistPage(ch.id, t), { since: c.from });
+      uploads.set(ch.id, { videos: [...videos, ...c.videos], from: c.from, at: Date.now() });
+    }
+    return uploads.get(ch.id).videos;
+  })().finally(() => { const u = uploads.get(ch.id); if (u) delete u.job; });
+  uploads.set(ch.id, { ...(c || { videos: [], from: Infinity, at: 0 }), job });
+  return job;
 }
 
 // In mock mode, a highlights video for each game that finished in the last few days.
@@ -148,9 +213,23 @@ export async function resolveChannel(input) {
 
 // ---- finding and saving ----
 
+// Which games have a video, kept in memory so the 15-minute check doesn't read every
+// game's document. Auto-picked "highlights" that aren't (an old matching mistake) count as
+// missing, so they get replaced.
+let index = null; // { highlight: Map(id -> doc), preview: Map(id -> doc) }
+async function videoIndex() {
+  if (index) return index;
+  const load = async (kind) => new Map((await KINDS[kind].get()).docs.map((d) => [d.id, d.data()]));
+  index = { highlight: await load('highlight'), preview: await load('preview') };
+  return index;
+}
+export const resetVideoIndex = () => { index = null; uploads.clear(); feedCache.clear(); };
+const settled = (kind, d) => !!d && (d.hidden || (d.videoId && (!d.auto || kind !== 'highlight' || isHighlightTitle(d.title || ''))));
+
 let lastRun = 0;
-// From the channel feeds: highlights for games that finished in the last 4 days and
-// previews for games in the next 4, where there isn't one yet.
+// From the channels: highlights for finished games and previews for games in the next 4
+// days, where there isn't one yet. With an API key that's every game this season (from the
+// channels' full upload lists); without, only the last 4 days (the feeds are short).
 export async function findHighlights({ matches, force = false }) {
   if (!force && Date.now() - lastRun < 15 * 60_000) return null;
   lastRun = Date.now();
@@ -161,29 +240,34 @@ export async function findHighlights({ matches, force = false }) {
   for (const code of new Set(channels.flatMap((c) => c.competitions || []))) {
     if (!have0.has(code) && isCompetition(code)) matches = [...matches, ...await getMatches(code).catch(() => [])];
   }
-  const due = matches.filter((m) => (m.status === 'finished' && now - new Date(m.kickoff) < 4 * 86400_000)
-    || (m.status === 'upcoming' && new Date(m.kickoff) - now < 4 * 86400_000));
-  if (!due.length) return { found: 0 };
+  const reach = API_KEY ? 200 * 86400_000 : 4 * 86400_000;
   const kindOf = (m) => (m.status === 'finished' ? 'highlight' : 'preview');
-  const have = await Promise.all(due.map((m) => KINDS[kindOf(m)].doc(m.id).get()));
-  const todo = due.filter((m, i) => !have[i].exists || (!have[i].data().videoId && !have[i].data().hidden));
+  const idx = await videoIndex();
+  const todo = matches.filter((m) => ((m.status === 'finished' && now - new Date(m.kickoff) < reach)
+    || (m.status === 'upcoming' && new Date(m.kickoff) - now < 4 * 86400_000)) && !settled(kindOf(m), idx[kindOf(m)].get(m.id)));
   if (!todo.length) return { found: 0 };
-  const feeds = new Map();
-  let found = 0;
+  const since = new Date(Math.min(...todo.map((m) => new Date(m.kickoff).getTime())) - 5 * 86400_000);
+  const lists = new Map();
+  let found = 0, fixed = 0;
   for (const m of todo) {
     const videos = [];
     for (const ch of channelsFor(channels, m.competition)) {
-      if (!feeds.has(ch.id)) feeds.set(ch.id, await fetchFeed(ch.id, matches).catch((e) => { console.error('highlights feed failed:', e.message); return []; }));
-      videos.push(...feeds.get(ch.id).map((v) => ({ ...v, channel: ch.name })));
+      if (!lists.has(ch.id)) lists.set(ch.id, await channelVideos(ch, since, matches).catch((e) => { console.error('highlights: channel failed:', e.message); return []; }));
+      videos.push(...lists.get(ch.id).map((v) => ({ ...v, channel: ch.name })));
     }
     const kind = kindOf(m);
     const v = kind === 'highlight' ? findHighlight(m, videos) : findPreview(m, videos);
-    if (!v) continue;
-    await saveVideo(kind, m, { videoId: v.videoId, title: v.title, channel: v.channel, published: v.published, auto: true });
-    found++;
+    const old = idx[kind].get(m.id);
+    if (v) {
+      await saveVideo(kind, m, { videoId: v.videoId, title: v.title, channel: v.channel, published: v.published, auto: true });
+      found++;
+    } else if (old?.videoId && old.auto) {
+      await saveVideo(kind, m, { videoId: null, title: null, auto: true }); // a wrong pick: take it down
+      fixed++;
+    }
   }
-  if (found) console.log(`videos: found ${found}`);
-  return { found };
+  if (found || fixed) console.log(`videos: found ${found}, removed ${fixed} wrong`);
+  return { found, removed: fixed };
 }
 
 // ---- YouTube search (needs YOUTUBE_API_KEY) ----
@@ -252,10 +336,19 @@ export async function searchFor(m, { now = Date.now() } = {}) {
   const job = (async () => {
     const ref = KINDS[kind].doc(m.id);
     const cur = (await ref.get()).data();
-    if (cur?.videoId || cur?.hidden) return null;
-    if (cur?.searchedAt && now - cur.searchedAt < (kind === 'preview' ? 6 : 12) * 3600_000) return null;
+    if (settled(kind, cur)) return null;
     const channels = channelsFor(await getChannels(), m.competition);
     const ko = new Date(m.kickoff).getTime();
+    // This season: look in the channels' upload lists (nearly free) rather than searching.
+    if (API_KEY && now - ko < 200 * 86400_000) {
+      const videos = [];
+      for (const ch of channels) videos.push(...(await channelVideos(ch, new Date(ko - 5 * 86400_000), [m])).map((v) => ({ ...v, channel: ch.name })));
+      const v = kind === 'highlight' ? findHighlight(m, videos) : findPreview(m, videos);
+      if (!v) return null;
+      await saveVideo(kind, m, { videoId: v.videoId, title: v.title, channel: v.channel, published: v.published, auto: true });
+      return { kind, ...v };
+    }
+    if (cur?.searchedAt && now - cur.searchedAt < (kind === 'preview' ? 6 : 12) * 3600_000) return null;
     const [after, before] = kind === 'highlight' ? [ko, ko + 4 * 86400_000] : [ko - 4 * 86400_000, Math.min(ko, now)];
     const q = `${m.home.name} ${m.away.name} ${kind === 'highlight' ? 'highlights' : 'preview'}`;
     const videos = [];
@@ -277,18 +370,21 @@ export async function searchFor(m, { now = Date.now() } = {}) {
 }
 
 export async function saveVideo(kind, m, video) {
-  await KINDS[kind].doc(m.id).set({
+  const doc = {
     searchedAt: null, ...video, matchId: m.id, competition: m.competition, kickoff: m.kickoff,
     home: { name: m.home.name, tla: m.home.tla, crest: m.home.crest || null },
     away: { name: m.away.name, tla: m.away.tla, crest: m.away.crest || null },
-    score: m.score || null, savedAt: FieldValue.serverTimestamp(),
-  });
+    score: m.score || null,
+  };
+  await KINDS[kind].doc(m.id).set({ ...doc, savedAt: FieldValue.serverTimestamp() });
+  index?.[kind].set(m.id, doc);
 }
 export const saveHighlight = (m, video) => saveVideo('highlight', m, video);
 
 async function getVideo(kind, matchId) {
   const d = await KINDS[kind].doc(String(matchId)).get();
   if (!d.exists || d.data().hidden || !d.data().videoId) return null;
+  if (kind === 'highlight' && d.data().auto && !isHighlightTitle(d.data().title || '')) return null; // an old wrong pick
   const { savedAt, searchedAt, ...h } = d.data(); // eslint-disable-line no-unused-vars
   return h;
 }
@@ -299,6 +395,6 @@ export const getPreview = (matchId) => getVideo('preview', matchId);
 export async function latestHighlights(limit = 10, competition = null) {
   // Filtered here rather than in the query, so no composite index is needed.
   const snap = await highlights.orderBy('kickoff', 'desc').limit(competition ? 300 : limit * 3).get();
-  return snap.docs.map((d) => d.data()).filter((h) => !h.hidden && h.videoId && (!competition || h.competition === competition)).slice(0, limit)
+  return snap.docs.map((d) => d.data()).filter((h) => !h.hidden && h.videoId && (!h.auto || isHighlightTitle(h.title || '')) && (!competition || h.competition === competition)).slice(0, limit)
     .map(({ savedAt, searchedAt, ...h }) => h); // eslint-disable-line no-unused-vars
 }
