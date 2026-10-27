@@ -15,7 +15,7 @@ import { listTrophies } from './trophies.js';
 import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion } from './quiz.js';
 import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
-import { findHighlights, getHighlight, getPreview, searchFor, searchCandidates, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
+import { findHighlights, getHighlight, getPreview, searchFor, searchCandidates, channelStatus, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
 import { scorePick, validDoubles, AVATARS, GAMES } from '../src/lib/game.js';
@@ -839,11 +839,12 @@ app.post('/api/admin/sync', requireUser, requireAdmin, wrap(async (_req, res) =>
 
 // Highlights: which YouTube channels to watch, and setting a match's video by hand.
 app.get('/api/admin/highlights', requireUser, requireAdmin, wrap(async (_req, res) => {
-  res.json({ channels: await getChannels(), recent: await latestHighlights(15), quota: await quotaToday() });
+  const st = channelStatus();
+  res.json({ channels: (await getChannels()).map((c) => ({ ...c, status: st[c.id] || null })), recent: await latestHighlights(15), quota: await quotaToday() });
 }));
 
 app.post('/api/admin/highlights/channels', requireUser, requireAdmin, wrap(async (req, res) => {
-  let channels = await getChannels();
+  let channels = (await getChannels()).map(({ status, ...c }) => c); // eslint-disable-line no-unused-vars
   const comps = (list) => (Array.isArray(list) ? list.map((c) => String(c).toUpperCase()).filter(isCompetition) : []);
   if (req.body?.remove) channels = channels.filter((c) => c.id !== req.body.remove);
   if (req.body?.update) channels = channels.map((c) => (c.id === req.body.update ? { ...c, competitions: comps(req.body.competitions) } : c));

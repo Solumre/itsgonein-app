@@ -45,7 +45,12 @@ export default function HighlightsAdmin({ run }) {
       <ul className="admin-list">
         {(data?.channels || []).map((c) => (
           <li key={c.id} className="ch-row">
-            <a href={`https://www.youtube.com/channel/${c.id}`} target="_blank" rel="noreferrer">{c.name}</a>
+            <span className="ch-name">
+              <a href={`https://www.youtube.com/channel/${c.id}`} target="_blank" rel="noreferrer">{c.name}</a>
+              <small className={c.status?.error ? 'bad' : ''}>
+                {!c.status ? 'Not checked yet' : c.status.error ? `⚠️ ${c.status.error}` : `${c.status.videos} videos read · ${new Date(c.status.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
+              </small>
+            </span>
             <span className="ch-comps">
               {COMPS.map(([code]) => (
                 <button key={code} className={`chip chip-sm${c.competitions?.includes(code) ? ' on' : ''}`}

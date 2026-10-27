@@ -114,3 +114,24 @@ describe('scanUploads', () => {
     expect(calls).toEqual(['first']);
   });
 });
+
+describe('European club names', () => {
+  const game = (home, away, score = { home: 2, away: 1 }) => ({ id: 'cl', kickoff: '2026-10-21T19:00:00Z', status: 'finished', score, home, away });
+  const vt = (title) => [{ videoId: 'clhighlight', title, published: '2026-10-21T22:30:00Z' }];
+  const club = (name, full, tla) => ({ name, full, tla });
+  it('matches how titles write clubs the data names differently', () => {
+    const cases = [
+      [club('Bayern', 'FC Bayern München', 'FCB'), club('Atleti', 'Club Atlético de Madrid', 'ATL'), 'Bayern Munich 2-1 Atletico Madrid | UEFA Champions League Highlights'],
+      [club('Barça', 'FC Barcelona', 'FCB'), club('Inter', 'FC Internazionale Milano', 'INT'), 'Barcelona vs Inter Milan 2-1 | Champions League highlights'],
+      [club('København', 'FC København', 'COP'), club('Bodø/Glimt', 'FK Bodø/Glimt', 'BOD'), 'FC Copenhagen 2-1 Bodo/Glimt | Highlights'],
+      [club('PSG', 'Paris Saint-Germain FC', 'PSG'), club('Sporting CP', 'Sporting Clube de Portugal', 'SCP'), 'PSG 2-1 Sporting Lisbon | UCL Highlights'],
+      [club('Arsenal', 'Arsenal FC', 'ARS'), club('Slavia Praha', 'SK Slavia Praha', 'SLA'), 'Arsenal 2-1 Slavia Prague | Champions League Highlights'],
+      [club('Athletic Club', 'Athletic Club', 'ATH'), club('Union SG', 'Royale Union Saint-Gilloise', 'USG'), 'Athletic Bilbao v Union Saint-Gilloise | Highlights'],
+    ];
+    for (const [home, away, title] of cases) expect(findHighlight(game(home, away), vt(title))?.videoId, title).toBe('clhighlight');
+  });
+  it('still keeps different clubs apart', () => {
+    expect(findHighlight(game(club('Real Madrid', 'Real Madrid CF', 'RMA'), club('Juventus', 'Juventus FC', 'JUV')), vt('Atletico Madrid 2-1 Juventus | Highlights'))).toBeNull();
+    expect(findHighlight(game(club('Villarreal', 'Villarreal CF', 'VIL'), club('Arsenal', 'Arsenal FC', 'ARS')), vt('Aston Villa 2-1 Arsenal | Highlights'))).toBeNull();
+  });
+});
