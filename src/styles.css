@@ -163,14 +163,16 @@ p { margin: 0; }
   background: var(--bg-2); border-bottom: 1px solid var(--line); overflow: hidden;
 }
 .ticker-track { flex: 1; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 24px), transparent); }
-.ticker-run { display: inline-flex; gap: 28px; white-space: nowrap; animation: ticker 28s linear infinite; padding-left: 16px; }
+.ticker-run { display: inline-flex; gap: 28px; white-space: nowrap; animation: ticker 28s linear infinite; padding-left: 100%; will-change: transform; }
 .ticker-run:hover { animation-play-state: paused; }
 .ticker-item { font: 700 15px/1 var(--display); letter-spacing: 0.02em; color: var(--dim); }
 .ticker-item b { color: var(--text); margin: 0 4px; }
 .ticker-item small { color: var(--live); margin-left: 6px; }
 .ticker-msg { font-weight: 700; font-size: 14px; color: var(--accent); }
-@keyframes ticker { from { transform: translateX(30%); } to { transform: translateX(-100%); } }
-@media (prefers-reduced-motion: reduce) { .ticker-run { animation: none; } }
+/* padding-left: 100% (of the track) starts the items at the right edge; -100% (of the run,
+   which is that padding plus the items) takes them all the way off the left. */
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .ticker-run { animation: none; padding-left: 16px; } }
 
 .nav {
   position: fixed; inset: auto 0 0 0; z-index: 40;
