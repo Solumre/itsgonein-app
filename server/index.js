@@ -9,6 +9,7 @@ import {
 } from './football.js';
 import { syncNow, startSyncLoop, toGameMatch, gameMatches } from './sync.js';
 import { buildRecap, gameweekComplete } from './recap.js';
+import { createChallenge, respondChallenge, cancelChallenge, listChallenges } from './h2h.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
 import { scorePick, validDoubles, AVATARS, GAMES } from '../src/lib/game.js';
 
@@ -264,6 +265,10 @@ app.delete('/api/me', requireUser, wrap(async (req, res) => {
     const msgs = await l.ref.collection('messages').where('uid', '==', uid).get();
     msgs.docs.forEach((m) => writer.update(m.ref, { deleted: true, text: '', nickname: 'Deleted player', uid: null }));
   }
+  for (const col of ['challenges', 'rivalries']) {
+    const snap = await db.collection(col).where('players', 'array-contains', uid).get();
+    snap.docs.forEach((d) => writer.delete(d.ref));
+  }
   if (u.exists && u.data().nickname) writer.delete(db.collection('nicknames').doc(u.data().nickname.toLowerCase()));
   writer.delete(users.doc(uid));
   writer.delete(privates.doc(uid));
@@ -408,6 +413,27 @@ app.get('/api/recap', requireUser, wrap(async (req, res) => {
   const md = Number(req.query.matchday);
   if (!Number.isInteger(md) || !gameweekComplete(matches, md)) fail(400, "That round isn't finished yet.");
   res.json({ recap: await buildRecap(req.user.uid, md, matches, comp) });
+}));
+
+// --- head-to-head challenges ----------------------------------------------------------
+app.get('/api/challenges', requireUser, wrap(async (req, res) => {
+  res.json({ challenges: await listChallenges(req.user.uid) });
+}));
+
+app.post('/api/challenges', requireUser, wrap(async (req, res) => {
+  const { user } = await socialCheck(req.user.uid);
+  if (!rateLimit(`h2h:${req.user.uid}`, { max: 10, windowMs: 10 * 60_000 })) fail(429, 'Slow down a bit!');
+  const comp = String(req.body?.competition || GAME_COMPETITION).toUpperCase();
+  res.json(await createChallenge({ from: req.user.uid, fromUser: user, to: String(req.body?.to || ''), leagueCode: req.body?.league, competition: comp }));
+}));
+
+app.post('/api/challenges/:id/respond', requireUser, wrap(async (req, res) => {
+  await socialCheck(req.user.uid);
+  res.json(await respondChallenge({ id: req.params.id, uid: req.user.uid, accept: req.body?.accept === true }));
+}));
+
+app.delete('/api/challenges/:id', requireUser, wrap(async (req, res) => {
+  res.json(await cancelChallenge({ id: req.params.id, uid: req.user.uid }));
 }));
 
 // --- chat ----------------------------------------------------------------------------
@@ -567,8 +593,9 @@ app.post('/api/admin/sync', requireUser, requireAdmin, wrap(async (_req, res) =>
 app.use('/api', (_req, _res, next) => next(new HttpError(404, 'Not found')));
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
-  if (!(err instanceof HttpError)) console.error(err);
-  res.status(err.status || 500).json({ error: err instanceof HttpError ? err.message : 'Something went wrong — try again.' });
+  const expected = err instanceof HttpError || err.expose;
+  if (!expected) console.error(err);
+  res.status(err.status || 500).json({ error: expected ? err.message : 'Something went wrong — try again.' });
 });
 
 const dist = path.join(__dirname, '..', 'dist');

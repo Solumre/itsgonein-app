@@ -2,7 +2,7 @@ import { createContext, useContext, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation } from 'react-router-dom';
 import { Target, Trophy, Radio, UserRound, Shield } from 'lucide-react';
 import { SessionProvider, useSession } from './lib/session';
-import { useMatches, useTicker } from './lib/hooks';
+import { useMatches, useTicker, useIncomingChallenges } from './lib/hooks';
 import { ToastProvider } from './components/Toast';
 import { PushListener } from './components/Reminders';
 import Avatar from './components/Avatar';
@@ -53,7 +53,8 @@ const NAV = [
 ];
 
 function Shell({ children }) {
-  const { user, profile, isAdmin } = useSession();
+  const { user, profile, isAdmin, canSocial } = useSession();
+  const incoming = useIncomingChallenges(canSocial ? user?.uid : null);
   const matches = useMatches('PL');
   const clMatches = useMatches('CL');
   const allMatches = [...(matches.data?.matches || []), ...(clMatches.data?.matches || [])];
@@ -82,6 +83,7 @@ function Shell({ children }) {
               <span className="nav-icon">
                 <Icon size={22} strokeWidth={2.2} />
                 {to === '/live' && anyLive && <i className="nav-dot" />}
+                {to === '/leagues' && incoming > 0 && <i className="nav-dot" aria-label={`${incoming} challenge${incoming > 1 ? 's' : ''} waiting`} />}
               </span>
               <span>{label}</span>
             </NavLink>

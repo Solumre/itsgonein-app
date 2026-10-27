@@ -89,3 +89,10 @@ export const useMessages = (code) =>
 
 const tickerRef = doc(db, 'settings', 'ticker');
 export const useTicker = () => useSnapshot(tickerRef);
+
+// Head-to-head challenges waiting for your answer (for the dot on the Leagues tab).
+export function useIncomingChallenges(uid) {
+  const ref = useMemo(() => uid && query(collection(db, 'challenges'), where('players', 'array-contains', uid), where('status', '==', 'pending')), [uid]);
+  const { data } = useSnapshot(ref);
+  return (data || []).filter((c) => c.to === uid).length;
+}

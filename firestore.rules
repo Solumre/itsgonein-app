@@ -23,6 +23,10 @@ service cloud.firestore {
       }
     }
 
+    // Head-to-heads and rivalry records: only the two players involved. Written by the server.
+    match /challenges/{id} { allow read: if signedIn() && request.auth.uid in resource.data.players; }
+    match /rivalries/{id} { allow read: if signedIn() && request.auth.uid in resource.data.players; }
+
     // Your own picks only. Other players' picks are revealed by the server after kickoff.
     match /predictions/{pid} {
       allow read: if signedIn() && resource.data.uid == request.auth.uid;
