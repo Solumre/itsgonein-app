@@ -1,4 +1,4 @@
-import { createContext, useContext, lazy, Suspense } from 'react';
+import { createContext, useContext, lazy, Suspense, useRef, useLayoutEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation } from 'react-router-dom';
 import { Target, Trophy, Radio, UserRound, Shield } from 'lucide-react';
 import { SessionProvider, useSession } from './lib/session';
@@ -44,9 +44,27 @@ function Ticker({ matches }) {
   return (
     <div className="ticker" aria-label="Live scores">
       {live.length > 0 && <span className="live-pill">LIVE</span>}
-      <div className="ticker-track"><div className="ticker-run">{items}</div></div>
+      <TickerTrack>{items}</TickerTrack>
     </div>
   );
+}
+
+// Scrolls its contents from the right edge right across and off the left, at the same
+// speed whatever the screen width (the run's width includes the track's width as padding).
+const TICKER_SPEED = 70; // px a second
+function TickerTrack({ children }) {
+  const run = useRef(null);
+  useLayoutEffect(() => {
+    const el = run.current;
+    if (!el) return undefined;
+    const set = () => { el.style.animationDuration = `${Math.max(8, el.scrollWidth / TICKER_SPEED)}s`; };
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    ro.observe(el.parentElement);
+    return () => ro.disconnect();
+  }, []);
+  return <div className="ticker-track"><div className="ticker-run" ref={run}>{children}</div></div>;
 }
 
 const NAV = [
