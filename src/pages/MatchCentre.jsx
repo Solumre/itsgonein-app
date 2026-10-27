@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { collection, query, where, limit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Lock, MapPin } from 'lucide-react';
-import { useApi, useNow } from '../lib/hooks';
+import { ArrowLeft, Lock, MapPin, Send } from 'lucide-react';
+import { useApi, useNow, useMyLeagues, useSnapshot } from '../lib/hooks';
+import { QUICK_CHAT } from '../lib/game';
+import { ago } from '../lib/format';
+import PickReactions from '../components/PickReactions';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { dayLabel, timeLabel, ordinal } from '../lib/format';
@@ -154,7 +159,69 @@ function LivePicks({ live, m, competition, onAnswered }) {
   );
 }
 
-function Picks({ mine, mates, m, canPick }) {
+// Chat about this game with a league: messages tagged with it, from the league chat.
+function MatchTalk({ m }) {
+  const { user, priv, profile } = useSession();
+  const { data: leagues } = useMyLeagues(user?.uid);
+  const [picked, setPicked] = useState(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const code = picked || leagues?.[0]?.id || null;
+  const ref = useMemo(() => code && query(collection(db, 'leagues', code, 'messages'), where('matchId', '==', m.id), limit(60)), [code, m.id]);
+  const { data: msgs } = useSnapshot(ref);
+  if (!user || !leagues) return null;
+  if (!leagues.length) {
+    return (
+      <section className="card">
+        <h2 className="section-title">💬 Match talk</h2>
+        <p className="hint">Join a league to talk about this game with your mates. <Link to="/leagues">Leagues ›</Link></p>
+      </section>
+    );
+  }
+  const blocked = new Set(priv?.blocked || []);
+  const list = [...(msgs || [])].filter((x) => !x.deleted && !blocked.has(x.uid))
+    .sort((a, b) => (a.createdAt?.toMillis?.() ?? Infinity) - (b.createdAt?.toMillis?.() ?? Infinity)).slice(-30);
+  const send = async (body) => {
+    setBusy(true);
+    try {
+      await api(`/api/leagues/${code}/messages`, { method: 'POST', body: { ...body, matchId: m.id } });
+      if (body.text) setText('');
+    } catch (e) { toast(e.message, 'bad'); }
+    setBusy(false);
+  };
+  return (
+    <section className="card match-talk">
+      <h2 className="section-title">💬 Match talk</h2>
+      {leagues.length > 1 && (
+        <div className="comp-chips" role="tablist" aria-label="League">
+          {leagues.map((l) => <button key={l.id} role="tab" aria-selected={l.id === code} className={`chip chip-sm${l.id === code ? ' on' : ''}`} onClick={() => setPicked(l.id)}>{l.name}</button>)}
+        </div>
+      )}
+      <div className="mt-list">
+        {list.length === 0 && <p className="hint">Nothing yet about {m.home.tla} v {m.away.tla}. Say something!</p>}
+        {list.map((x) => (x.type === 'system' ? (
+          <p key={x.id} className="sys-msg">{x.text}</p>
+        ) : (
+          <div key={x.id} className={`mt-msg${x.uid === user.uid ? ' mine' : ''}`}>
+            <Avatar user={x} size={24} />
+            <span className="mt-body"><b style={{ color: x.color || undefined }}>{x.uid === user.uid ? 'You' : x.nickname}</b> {x.type === 'pick' && '🔮 '}{x.text}<time>{ago(x.createdAt?.toDate?.())}</time></span>
+          </div>
+        )))}
+      </div>
+      <div className="quick-row" role="toolbar" aria-label="Quick chat">
+        {Object.entries(QUICK_CHAT).slice(0, 6).map(([id, t]) => <button key={id} className="chip chip-sm" disabled={busy} onClick={() => send({ quick: id })}>{t}</button>)}
+      </div>
+      <form className="composer-row" onSubmit={(e) => { e.preventDefault(); if (text.trim()) send({ text }); }}>
+        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder={`Message as ${profile?.nickname || 'you'}…`} aria-label="Message about this game" />
+        <button className="send" disabled={busy || !text.trim()} aria-label="Send"><Send size={18} /></button>
+      </form>
+      <p className="hint">Goes to your {leagues.find((l) => l.id === code)?.name} chat too. Be kind!</p>
+    </section>
+  );
+}
+
+function Picks({ mine, mates, m, canPick, onChange }) {
   const live = m.status === 'live';
   return (
     <section className="card mc-picks">
@@ -167,6 +234,7 @@ function Picks({ mine, mates, m, canPick }) {
         {mine?.points != null && <span className={`outcome ${mine.points >= 3 ? 'outcome-exact' : mine.points > 0 ? 'outcome-result' : 'outcome-miss'}`}>{live ? 'If it ends now: ' : ''}<b>+{mine.points}</b></span>}
         {canPick && <Link to="/predict" className="btn btn-sm">{mine ? 'Change' : 'Make a pick'}</Link>}
       </div>
+      {mine?.reactions?.length > 0 && <p className="mc-mine-rx">Mates on your pick: <PickReactions reactions={mine.reactions} /></p>}
       {mates && !mates.revealed && (
         <p className="hint"><Lock size={13} /> {mates.picked} of your {mates.total} league mates have picked. Their picks show at kickoff.</p>
       )}
@@ -186,6 +254,7 @@ function Picks({ mine, mates, m, canPick }) {
                 <span className="who"><strong>{p.nickname}</strong></span>
                 <span className="mc-mate-pick">{p.pick.home}–{p.pick.away}{p.pick.double ? ' ✌️' : ''}</span>
                 {p.points != null && <span className={`pts-chip ${p.points >= 3 ? 'exact' : p.points > 0 ? 'result' : ''}`}>+{p.points}</span>}
+                <PickReactions reactions={p.reactions} matchId={m.id} target={p.uid} canReact onChange={onChange} />
               </li>
             ))}
           </ul>
@@ -287,7 +356,8 @@ export default function MatchCentre() {
       <Highlights h={data.highlight} />
       <Highlights h={data.preview} title="🎬 Preview" />
       {data.live && <LivePicks live={data.live} m={m} competition={competition} onAnswered={reload} />}
-      {user && !data.past && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} />}
+      {user && !data.past && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} onChange={reload} />}
+      {user && !data.past && ['PL', 'CL'].includes(competition) && <MatchTalk m={m} />}
       <Timeline events={m.events} m={m} />
       <Lineups lineups={m.lineups} m={m} />
       <FormAndHistory form={data.form} h2h={data.h2h} m={m} />

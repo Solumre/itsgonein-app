@@ -941,3 +941,35 @@ a.fixture:hover { background: var(--card-2); }
 .yt-search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 8px; }
 .yt-anywhere { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--dim); }
 .yt-actions { display: flex; flex-direction: column; gap: 6px; flex: none; }
+
+/* Pick reactions */
+.pick-rx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.pick-rx .rx { display: inline-flex; align-items: center; gap: 2px; padding: 3px 7px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--card-2); font-size: 15px; line-height: 1; }
+.pick-rx .rx small { font-size: 11px; font-weight: 800; }
+.pick-rx .rx.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 20%, var(--card-2)); }
+.pick-rx .rx-add { font-size: 13px; opacity: 0.8; }
+.rx-pick { display: inline-flex; gap: 2px; padding: 2px 4px; border-radius: 999px; background: var(--card-2); border: 1px solid var(--line-2); }
+.rx-pick button { border: 0; background: none; font-size: 22px; padding: 2px 4px; transition: transform 0.1s; }
+.rx-pick button:hover, .rx-pick button:focus-visible { transform: scale(1.25); }
+.mc-mates li { flex-wrap: wrap; }
+.mc-mates .pick-rx { flex-basis: 100%; padding-left: 40px; }
+.mc-mine-rx { display: flex; align-items: center; gap: 8px; color: var(--dim); font-size: 14px; margin: 6px 0 0; }
+button.pg-cell { color: inherit; padding: 0; }
+.pg-cell:not(:disabled) { cursor: pointer; }
+.pg-rx { position: absolute; right: 1px; bottom: -2px; font-size: 10px; line-height: 1; }
+.pick-sheet { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 6px 0 10px; }
+.pick-sheet-line { display: flex; align-items: center; gap: 8px; font-size: 18px; margin: 0; }
+.pick-sheet .pick-rx .rx { font-size: 20px; padding: 6px 10px; }
+.pick-sheet .rx-pick button { font-size: 30px; }
+
+/* Match talk */
+.match-chip { display: inline-block; margin: 2px 0; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--card-2); border: 1px solid var(--line-2); color: inherit; text-decoration: none; }
+.match-talk .mt-list { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; margin: 8px 0; }
+.mt-msg { display: flex; gap: 8px; align-items: flex-start; }
+.mt-body { background: var(--card-2); border-radius: 12px; padding: 6px 10px; font-size: 15px; }
+.mt-msg.mine .mt-body { background: color-mix(in srgb, var(--accent) 22%, var(--card-2)); }
+.mt-body time { display: block; font-size: 11px; color: var(--dim); }
+.match-talk .quick-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+.match-talk .composer-row { display: flex; gap: 8px; }
+.match-talk .composer-row input { flex: 1; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line-2); background: var(--card-2); font-size: 16px; }
+button.pg-cell:disabled { cursor: default; }

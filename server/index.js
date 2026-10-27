@@ -14,6 +14,7 @@ import { createChallenge, respondChallenge, cancelChallenge, listChallenges, ope
 import { listTrophies } from './trophies.js';
 import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion } from './quiz.js';
 import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
+import { PICK_REACTIONS, togglePickReaction, reactionsFor, visible } from './pickReactions.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
 import { findHighlights, getHighlight, getPreview, searchFor, searchCandidates, channelStatus, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
@@ -163,6 +164,10 @@ app.get('/api/match/:id', optionalUser, wrap(async (req, res) => {
           const p = pickBy[d.id];
           return { uid: d.id, nickname: d.data().nickname, avatar: d.data().avatar, club: d.data().club || null, pick: { home: p.home, away: p.away, double: !!p.double }, points: pts(p) };
         }).sort((a, b) => (b.points ?? 0) - (a.points ?? 0) || a.nickname.localeCompare(b.nickname));
+        const allowed = new Set([...memberIds, uid]);
+        const rx = await reactionsFor([...list.map((p) => [id, p.uid]), ...(mine ? [[id, uid]] : [])]);
+        for (const p of list) p.reactions = visible(rx.get(`${id}_${p.uid}`), allowed, uid);
+        if (mine) mine.reactions = visible(rx.get(`${id}_${uid}`), allowed, uid);
         const side = (p) => Math.sign(p.home - p.away);
         mates = {
           revealed: true, picked: list.length, total: memberIds.length, list,
@@ -601,15 +606,18 @@ app.get('/api/leagues/:code/board', requireUser, wrap(async (req, res) => {
     };
   });
 
+  const started = (m) => !(new Date(m.kickoff).getTime() > now && m.status === 'upcoming');
+  const rx = await reactionsFor(gwMatches.filter(started).flatMap((m) => members.filter((u) => picks.has(`${u}_${m.id}`)).map((u) => [m.id, u])));
+  const allowed = new Set(members);
   const revealed = gwMatches.map((m) => {
-    const open = new Date(m.kickoff).getTime() > now && m.status === 'upcoming';
+    const open = !started(m);
     return {
       matchId: m.id,
       picks: Object.fromEntries(members.map((u) => {
         const p = picks.get(`${u}_${m.id}`);
         if (!p) return [u, null];
         if (open && u !== req.user.uid) return [u, { hidden: true }];
-        return [u, { home: p.home, away: p.away, double: !!p.double, points: p.points ?? null }];
+        return [u, { home: p.home, away: p.away, double: !!p.double, points: p.points ?? null, ...(!open && { reactions: visible(rx.get(`${m.id}_${u}`), allowed, req.user.uid) }) }];
       })),
     };
   });
@@ -713,6 +721,15 @@ app.post('/api/leagues/:code/messages', requireUser, wrap(async (req, res) => {
     if (!check.ok) fail(400, check.reason);
     Object.assign(msg, { type: 'text', text: check.text });
   }
+  // Talking about a game (from its match centre): tag the message with it.
+  if (body.matchId && msg.type !== 'pick') {
+    const m = (await gameMatches()).find((x) => x.id === String(body.matchId));
+    if (m) Object.assign(msg, { matchId: m.id, matchComp: m.competition, matchLabel: `${m.home.tla} v ${m.away.tla}` });
+  }
+  if (msg.type === 'pick') {
+    const m = (await gameMatches()).find((x) => x.id === msg.matchId);
+    Object.assign(msg, { matchComp: m.competition, matchLabel: `${m.home.tla} v ${m.away.tla}` });
+  }
   const ref = await l.ref.collection('messages').add(msg);
   res.json({ id: ref.id });
 }));
@@ -731,6 +748,31 @@ app.post('/api/leagues/:code/messages/:id/react', requireUser, wrap(async (req, 
     tx.update(ref, { [`reactions.${emoji}`]: list.includes(uid) ? FieldValue.arrayRemove(uid) : FieldValue.arrayUnion(uid) });
   });
   res.json({ ok: true });
+}));
+
+// React to a league mate's pick once the game has kicked off.
+app.post('/api/picks/react', requireUser, wrap(async (req, res) => {
+  const { uid } = req.user;
+  const { user } = await socialCheck(uid);
+  if (!rateLimit(`pickreact:${uid}`, { max: 30, windowMs: 10 * 60_000 })) fail(429, 'Slow down a bit!');
+  const emoji = req.body?.emoji;
+  if (!PICK_REACTIONS.includes(emoji)) fail(400, 'Unknown reaction');
+  const target = String(req.body?.target || '');
+  if (!target || target === uid) fail(400, 'Pick a mate\'s pick to react to.');
+  const match = (await gameMatches()).find((m) => m.id === String(req.body?.matchId || ''));
+  if (!match) fail(404, 'Match not found.');
+  if (match.status === 'upcoming' && new Date(match.kickoff).getTime() > Date.now()) fail(400, 'Picks are hidden until kickoff.');
+  // A league you're both in (the one asked for, if it is).
+  const shared = (await leagues.where('members', 'array-contains', uid).get()).docs.filter((d) => d.data().members.includes(target));
+  const league = shared.find((d) => d.id === req.body?.league) || shared[0];
+  if (!league) fail(403, 'You can only react to league mates\' picks.');
+  const [pick, them, theirPriv] = await Promise.all([
+    db.collection('predictions').doc(`${target}_${match.id}`).get(), users.doc(target).get(), privates.doc(target).get(),
+  ]);
+  if (!pick.exists) fail(404, 'No pick to react to.');
+  if ((theirPriv.data()?.blocked || []).includes(uid)) fail(403, 'You can\'t react to this player.');
+  const on = await togglePickReaction({ uid, nickname: user.nickname, target, targetName: them.data()?.nickname || 'someone', match, pick: pick.data(), emoji, league: league.ref });
+  res.json({ on });
 }));
 
 app.delete('/api/leagues/:code/messages/:id', requireUser, wrap(async (req, res) => {
