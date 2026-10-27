@@ -138,6 +138,7 @@ describe('European club names', () => {
       [club('PSG', 'Paris Saint-Germain FC', 'PSG'), club('Sporting CP', 'Sporting Clube de Portugal', 'SCP'), 'PSG 2-1 Sporting Lisbon | UCL Highlights'],
       [club('Arsenal', 'Arsenal FC', 'ARS'), club('Slavia Praha', 'SK Slavia Praha', 'SLA'), 'Arsenal 2-1 Slavia Prague | Champions League Highlights'],
       [club('Athletic Club', 'Athletic Club', 'ATH'), club('Union SG', 'Royale Union Saint-Gilloise', 'USG'), 'Athletic Bilbao v Union Saint-Gilloise | Highlights'],
+      [club('Man City', 'Manchester City FC', 'MCI'), club('PAE AEK', 'PAE AEK', 'AEK'), 'Foden Is Unstoppable! | Man City 5-1 AEK Athens | UEFA Champions League Highlights'],
     ];
     for (const [home, away, title] of cases) expect(findHighlight(game(home, away), vt(title))?.videoId, title).toBe('clhighlight');
   });
@@ -153,5 +154,6 @@ describe('searchName', () => {
     expect(searchName({ name: 'Bayern', full: 'FC Bayern München', tla: 'FCB' })).toBe('bayern');
     expect(searchName({ name: 'Man United', full: 'Manchester United FC', tla: 'MUN' })).toBe('manchester united');
     expect(searchName({ name: 'Arsenal', full: 'Arsenal FC', tla: 'ARS' })).toBe('arsenal');
+    expect(searchName({ name: 'PAE AEK', full: 'PAE AEK', tla: 'AEK' })).toBe('aek athens');
   });
 });

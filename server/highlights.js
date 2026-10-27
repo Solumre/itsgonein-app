@@ -65,6 +65,22 @@ const EURO = [
   [/juventus/, ['juventus', 'juve']],
   [/marseille/, ['marseille', 'olympique de marseille']],
   [/qarabag/, ['qarabag']],
+  [/\baek\b/, ['aek athens', 'aek']],
+  [/paok/, ['paok']],
+  [/panathinaikos/, ['panathinaikos']],
+  [/fenerbahce/, ['fenerbahce']],
+  [/besiktas/, ['besiktas']],
+  [/pafos/, ['pafos']],
+  [/kairat/, ['kairat almaty', 'kairat']],
+  [/feyenoord/, ['feyenoord']],
+  [/salzburg/, ['salzburg', 'rb salzburg']],
+  [/leipzig/, ['rb leipzig', 'leipzig']],
+  [/shakhtar/, ['shakhtar donetsk', 'shakhtar']],
+  [/crvena|red star/, ['red star belgrade', 'crvena zvezda', 'red star']],
+  [/dinamo zagreb|^dinamo$/, ['dinamo zagreb']],
+  [/young boys/, ['young boys']],
+  [/sparta/, ['sparta prague', 'sparta praha']],
+  [/sturm/, ['sturm graz']],
   [/galatasaray/, ['galatasaray']],
   [/psv/, ['psv', 'psv eindhoven']],
   [/monaco/, ['monaco', 'as monaco']],
@@ -79,7 +95,7 @@ const fold = (s) => String(s || '').toLowerCase().replace(/Ã¸/g, 'o').replace(/Ã
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const norm = (s) => ` ${fold(s).replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ')} `;
 // Club-type words that don't help tell clubs apart.
-const NOISE = /\b(fc|afc|cf|sc|ac|ssc|as|rc|rcd|ogc|sl|fk|sk|cp|sv|vfb|vfl|tsg|bv|1|de|calcio|club|futbol|football)\b/g;
+const NOISE = /\b(fc|afc|cf|sc|ac|ssc|as|rc|rcd|ogc|sl|fk|sk|cp|sv|vfb|vfl|tsg|bv|1|de|calcio|club|futbol|football|pae|pfc|gfc|nk|hnk|gnk|cd|ud|sd)\b/g;
 export function teamNames(t) {
   const raw = [t.name, t.shortName, t.full, ...(ALIASES[t.tla] || [])].filter(Boolean);
   const names = new Set(raw.map((n) => norm(n).replace(NOISE, ' ').replace(/\s+/g, ' ').trim()));
@@ -360,7 +376,7 @@ export async function quotaToday() {
 async function searchChannel(channelId, q, after, before) {
   if (MOCK) return null; // the mock search is done by the callers
   const url = new URL('https://www.googleapis.com/youtube/v3/search');
-  Object.entries({ part: 'snippet', type: 'video', maxResults: '15', order: 'relevance', q, publishedAfter: after, publishedBefore: before, key: API_KEY, ...(channelId && { channelId }) })
+  Object.entries({ part: 'snippet', type: 'video', maxResults: channelId ? '15' : '30', order: 'relevance', q, publishedAfter: after, publishedBefore: before, key: API_KEY, ...(channelId && { channelId }) })
     .forEach(([k, v]) => url.searchParams.set(k, v));
   const r = await fetch(url);
   if (!r.ok) throw new Error(`YouTube search ${r.status}: ${(await r.text()).slice(0, 200)}`);
