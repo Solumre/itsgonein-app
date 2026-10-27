@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { useApi, useMatches } from '../lib/hooks';
 import { dayLabel } from '../lib/format';
+import { thumb } from './Video';
 
 const COMPS = [['PL', 'Premier League'], ['ELC', 'Championship'], ['CL', 'Champions League'], ['PD', 'La Liga'], ['BL1', 'Bundesliga'], ['SA', 'Serie A'], ['FL1', 'Ligue 1']];
 const short = (code) => ({ PL: 'PL', ELC: 'EFL', CL: 'UCL', PD: 'Liga', BL1: 'Bund', SA: 'Serie A', FL1: 'L1' }[code] || code);
@@ -16,6 +17,8 @@ export default function HighlightsAdmin({ run }) {
   const [kind, setKind] = useState('highlight');
   const [matchId, setMatchId] = useState('');
   const [url, setUrl] = useState('');
+  const [results, setResults] = useState(null);
+  const [searchingNow, setSearchingNow] = useState(false);
   const { data: feed } = useMatches(comp);
   const games = useMemo(() => {
     const all = feed?.matches || [];
@@ -25,6 +28,13 @@ export default function HighlightsAdmin({ run }) {
   }, [feed, kind]);
   const go = (fn, ok) => run(fn, ok).then(reload);
   const post = (body, ok) => go(() => api('/api/admin/highlights/channels', { method: 'POST', body }), ok);
+  const search = async () => {
+    setSearchingNow(true); setResults(null);
+    try { setResults(await api('/api/admin/highlights/search', { method: 'POST', body: { competition: comp, matchId, kind } })); } catch (e) { setResults({ candidates: [], errors: [e.message] }); }
+    setSearchingNow(false);
+    reload();
+  };
+  const use = (v) => go(() => api('/api/admin/highlights/match', { method: 'POST', body: { competition: comp, matchId, kind, url: v.videoId, title: v.title, channel: v.channel } }), 'Video saved').then(() => setResults(null));
   const toggle = (list, c) => (list.includes(c) ? list.filter((x) => x !== c) : [...list, c]);
   const q = data?.quota;
 
@@ -68,22 +78,36 @@ export default function HighlightsAdmin({ run }) {
       <h3 className="group-label">Set a game&apos;s video</h3>
       <form onSubmit={(e) => { e.preventDefault(); go(() => api('/api/admin/highlights/match', { method: 'POST', body: { competition: comp, matchId, url, kind } }), url ? 'Video saved' : 'Video removed').then(() => setUrl('')); }}>
         <div className="row-form">
-          <select value={kind} onChange={(e) => { setKind(e.target.value); setMatchId(''); }} aria-label="Video type">
+          <select value={kind} onChange={(e) => { setKind(e.target.value); setMatchId(''); setResults(null); }} aria-label="Video type">
             <option value="highlight">Highlights</option>
             <option value="preview">Preview</option>
           </select>
-          <select value={comp} onChange={(e) => { setComp(e.target.value); setMatchId(''); }} aria-label="Competition">
+          <select value={comp} onChange={(e) => { setComp(e.target.value); setMatchId(''); setResults(null); }} aria-label="Competition">
             {COMPS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
           </select>
         </div>
         <div className="row-form">
-          <select value={matchId} onChange={(e) => setMatchId(e.target.value)} aria-label="Game">
+          <select value={matchId} onChange={(e) => { setMatchId(e.target.value); setResults(null); }} aria-label="Game">
             <option value="">Pick a game…</option>
             {games.map((m) => <option key={m.id} value={m.id}>{dayLabel(m.kickoff)}: {m.home.name} {m.score ? `${m.score.home}–${m.score.away}` : 'v'} {m.away.name}</option>)}
           </select>
         </div>
+        <button type="button" className="btn btn-ghost btn-sm" disabled={!matchId || searchingNow} onClick={search}>{searchingNow ? 'Searching…' : '🔎 Search YouTube for this game'}</button>
+        {results && (
+          <div className="yt-results">
+            {results.errors?.map((e) => <p key={e} className="hint">⚠️ {e}</p>)}
+            {!results.candidates.length && !results.errors?.length && <p className="hint">YouTube found nothing for this game on these channels.</p>}
+            {results.candidates.map((v) => (
+              <button type="button" key={v.videoId} className={`yt-result${v.videoId === results.best ? ' best' : ''}`} onClick={() => use(v)}>
+                <img src={thumb(v.videoId)} alt="" loading="lazy" />
+                <span className="who"><strong>{v.title}</strong><small>{v.channel} · {dayLabel(v.published)}{v.videoId === results.best ? ' · would be picked automatically' : ''}</small></span>
+                <span className="btn btn-sm">Use</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="row-form">
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="YouTube link (leave empty to remove the video)" aria-label="YouTube link" />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Or paste a YouTube link (empty removes the video)" aria-label="YouTube link" />
           <button className="btn btn-sm" disabled={!matchId}>{url ? 'Save' : 'Remove'}</button>
         </div>
       </form>

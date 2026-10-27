@@ -15,7 +15,7 @@ import { listTrophies } from './trophies.js';
 import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion } from './quiz.js';
 import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
-import { findHighlights, getHighlight, getPreview, searchFor, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
+import { findHighlights, getHighlight, getPreview, searchFor, searchCandidates, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
 import { scorePick, validDoubles, AVATARS, GAMES } from '../src/lib/game.js';
@@ -870,8 +870,17 @@ app.post('/api/admin/highlights/match', requireUser, requireAdmin, wrap(async (r
   }
   const videoId = videoIdFrom(req.body.url);
   if (!videoId) fail(400, 'That doesn\'t look like a YouTube link.');
-  await saveVideo(kind, m, { videoId, title: `${m.home.name} v ${m.away.name}${kind === 'preview' ? ' preview' : ''}`, channel: null, published: new Date().toISOString(), auto: false });
+  const title = String(req.body.title || '').slice(0, 200) || `${m.home.name} v ${m.away.name}${kind === 'preview' ? ' preview' : ''}`;
+  await saveVideo(kind, m, { videoId, title, channel: req.body.channel ? String(req.body.channel).slice(0, 80) : null, published: new Date().toISOString(), auto: false });
   res.json({ ok: true, videoId });
+}));
+
+// Show what YouTube has for a game, to pick from.
+app.post('/api/admin/highlights/search', requireUser, requireAdmin, wrap(async (req, res) => {
+  const comp = String(req.body?.competition || '').toUpperCase();
+  const m = isCompetition(comp) && (await getMatches(comp)).find((x) => x.id === String(req.body?.matchId || ''));
+  if (!m) fail(404, 'Match not found.');
+  res.json(await searchCandidates(m, req.body?.kind === 'preview' ? 'preview' : 'highlight'));
 }));
 
 app.post('/api/admin/highlights/find', requireUser, requireAdmin, wrap(async (_req, res) => {

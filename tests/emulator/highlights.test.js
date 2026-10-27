@@ -133,3 +133,16 @@ describe('previews, older games and leagues', () => {
     expect(await hl.getPreview(up.id)).toMatchObject({ videoId: 'bbbbbbbbbbb', auto: false });
   });
 });
+
+describe('admin search', () => {
+  it('shows what YouTube has for a game and saves the one picked', async () => {
+    const game = pl.filter((m) => m.status === 'finished').at(-5);
+    expect((await call(kid, 'POST', '/api/admin/highlights/search', { competition: 'PL', matchId: game.id })).status).toBe(403);
+    const r = await call(admin, 'POST', '/api/admin/highlights/search', { competition: 'PL', matchId: game.id });
+    expect(r.body.candidates.length).toBeGreaterThan(0);
+    expect(r.body.best).toBe(r.body.candidates[0].videoId);
+    const v = r.body.candidates[0];
+    await call(admin, 'POST', '/api/admin/highlights/match', { competition: 'PL', matchId: game.id, url: v.videoId, title: v.title, channel: v.channel });
+    expect(await hl.getHighlight(game.id)).toMatchObject({ videoId: v.videoId, title: v.title, channel: v.channel, auto: false });
+  });
+});
