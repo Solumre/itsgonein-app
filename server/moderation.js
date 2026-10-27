@@ -13,6 +13,16 @@ const CONTACT = [
   [/\b(my|our) (address|postcode|house|school is)\b/i, 'Keep personal stuff private.'],
 ];
 
+// Cut text to `n` characters without splitting an emoji in half.
+export const clip = (s, n) => {
+  const t = String(s ?? '');
+  if (t.length <= n) return t;
+  const seg = typeof Intl.Segmenter === 'function' ? [...new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(t)].map((x) => x.segment) : Array.from(t);
+  let out = '';
+  for (const g of seg) { if (out.length + g.length > n) break; out += g; }
+  return out;
+};
+
 export function checkText(text, { max = 200 } = {}) {
   const t = String(text ?? '').replace(/\s+/g, ' ').trim();
   if (!t) return { ok: false, reason: 'Say something first!' };

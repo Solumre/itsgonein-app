@@ -1022,3 +1022,21 @@ button.pg-cell:disabled { cursor: default; }
 .faq p { color: var(--dim); margin: 8px 0 0; }
 .howto-cta { text-align: center; margin: 20px 0; }
 a.action { text-decoration: none; color: inherit; }
+
+/* Emoji picker */
+.emoji-picker { position: relative; display: inline-flex; flex: none; }
+.emoji-btn { font-size: 20px; }
+.emoji-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; width: min(300px, 86vw); padding: 8px; border-radius: 16px; background: var(--card); border: 1px solid var(--line-2); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
+.emoji-pop.up { top: auto; bottom: calc(100% + 6px); }
+.emoji-tabs { display: flex; gap: 4px; padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--line); }
+.emoji-tabs button { flex: 1; border: 0; border-radius: 10px; background: none; font-size: 18px; padding: 4px 0; opacity: 0.6; }
+.emoji-tabs button.on { background: var(--card-2); opacity: 1; }
+.emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 2px; }
+.emoji-grid button { border: 0; background: none; font-size: 24px; height: 40px; border-radius: 10px; transition: transform 0.1s; }
+.emoji-grid button:hover, .emoji-grid button:focus-visible { background: var(--card-2); transform: scale(1.15); }
+.field-emoji { flex-direction: row; align-items: center; gap: 6px; }
+.field-emoji input { flex: 1; }
+@media (max-width: 560px) {
+  .emoji-pop, .emoji-pop.up { position: fixed; left: 12px; right: 12px; width: auto; top: auto; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 560px) { .emoji-pop.up { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); } }
