@@ -21,3 +21,10 @@ node_modules
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets and build output
+.env
+.env.*
+dist
+*-debug.log
+service-account*.json

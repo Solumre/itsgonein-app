@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// The app only ever writes predictions directly. Everything else (profiles, leagues,
+// chat, votes, moderation) goes through the server, which checks and filters it first.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    match /matches/{id} { allow read: if true; }
+    match /settings/{id} { allow read: if true; }
+
+    // Public profile: nickname, avatar, club, stats. No real names, emails or ages.
+    match /users/{uid} { allow read: if signedIn(); }
+
+    // Birthday, parent consent and block list: only the player themselves.
+    match /private/{uid} { allow read: if signedIn() && request.auth.uid == uid; }
+
+    match /leagues/{code} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      match /messages/{id} {
+        allow read: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/leagues/$(code)).data.members;
+      }
+    }
+
+    // Your own picks only. Other players' picks are revealed by the server after kickoff.
+    match /predictions/{pid} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create, update: if signedIn() && validPick(pid)
+        && (resource == null || resource.data.uid == request.auth.uid);
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid
+        && request.time < resource.data.kickoff;
+    }
+
+    function validPick(pid) {
+      let d = request.resource.data;
+      let m = get(/databases/$(database)/documents/matches/$(d.matchId)).data;
+      return d.keys().hasOnly(['uid', 'matchId', 'home', 'away', 'double', 'kickoff', 'matchday', 'updatedAt'])
+        && d.uid == request.auth.uid
+        && d.matchId is string
+        && pid == request.auth.uid + '_' + d.matchId
+        && d.home is int && d.home >= 0 && d.home <= 15
+        && d.away is int && d.away >= 0 && d.away <= 15
+        && d.double is bool
+        && d.updatedAt == request.time
+        && m.competition == 'PL'
+        && m.status == 'upcoming'
+        && d.kickoff == m.kickoff
+        && d.matchday == m.matchday
+        && request.time < m.kickoff;
+    }
+  }
+}

@@ -1,16 +1,74 @@
-# React + Vite
+# ItsGoneIn
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Premier League score predictor for young fans (built for 10–15 year olds). Players predict every game, run private leagues with their mates, chat about it as the goals go in, pick their club's colours, and earn levels and badges.
 
-Currently, two official plugins are available:
+## How it works
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+| | |
+|---|---|
+| **Predict** | Pick a score for every Premier League game. Picks lock at kickoff. 3 points for the exact score, 1 for the right result, and one **Double Up** per gameweek. Lucky dip fills any gaps. |
+| **Leagues** | Create a league and share its 6-letter code or invite link. The table updates live during games, and the Picks grid shows everyone's picks once a game kicks off. |
+| **Chat** | One chat per league, with quick-chat buttons, reactions, and "share my pick". The app posts kickoff and full-time messages ("🎯 Sam nailed the exact score!"). |
+| **Your club** | The whole app takes on your club's colours (with contrast checks for navy or white kits). |
+| **Progress** | XP, levels (Sunday League → GOAT), streaks and 11 badges. |
+| **Live** | Scores, tables and top scorers for the PL, Championship, Champions League and the big European leagues, plus a Player of the Week poll. |
+| **Admin** | Reports queue, delete/block, ticker message, Player of the Week poll, manual sync. |
 
-## React Compiler
+### Safety (players are children)
+- Chat only exists inside private leagues joined by code. There's no public chat and no private messages.
+- Nicknames and emoji avatars only. Real names, photos and emails are never shown.
+- All chat goes through the server: swearing, links, emails, phone numbers, @handles and "add me on snap/insta/…" are blocked, with rate limits.
+- Any message can be reported (to the admin) or blocked. League owners can remove players.
+- **Under-13s need a parent or carer's OK** before leagues and chat unlock. The child sends a link, and the parent signs in with their own Google account and approves (or withdraws approval later).
+- Players can delete their account and all their data from the Me tab.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This follows the spirit of the ICO Children's Code. It isn't legal advice: if the app grows beyond friends and family, get a proper review.
 
-## Expanding the ESLint configuration
+## Architecture
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+React (Vite) app ──reads──▶ Firestore (profiles, leagues, chat, own picks)
+      │  └──writes own picks (security rules lock them at kickoff)
+      └──/api──▶ Express server (server/) ──▶ football-data.org (cached)
+                       └── Firebase Admin: profiles, leagues, chat, moderation,
+                           settling results, kickoff/full-time chat messages
+```
+
+- `server/football.js`: football-data.org client. One cached copy per feed is shared by everyone (60 s while games are on, 10 min otherwise), so the free tier's 10 calls a minute is plenty.
+- `server/sync.js`: copies fixtures into Firestore (the rules read kickoff times from it), settles finished games and recalculates players' stats.
+- `src/lib/game.js`: scoring, badges and levels, shared by the server and the app.
+- `firestore.rules`: the app can only write its own picks before kickoff. Everything else goes through the server.
+
+## Local development
+
+You need Node 20+ and Java (for the Firebase emulators). No API keys are needed: it runs on emulators and a generated season.
+
+```bash
+npm install
+npm run dev            # emulators + mock-data server + app on http://localhost:5173
+```
+
+When running against the emulators, sign in without Google from the browser console: `__devSignIn('you@example.com')`.
+
+```bash
+npm test               # unit tests (scoring, badges, chat filter)
+npm run test:emulator  # security rules + full server flow against the emulators
+npm run lint
+```
+
+## Deploying
+
+1. **Rotate the old keys.** They were committed to this public repo. Revoke the API-Football key and the football-data.org key (the one in `football-proxy.php` on the `deploy` branch), then get a new free key from football-data.org. Consider deleting the `deploy` branch.
+2. **Firebase** (project `itgonein`):
+   - Authentication → Sign-in method → Google is enabled. Add your domain under Authorized domains.
+   - Publish the security rules: `npx firebase-tools deploy --only firestore:rules --project itgonein`
+   - Project settings → Service accounts → Generate new private key. Keep this file secret and never commit it.
+   - The old collections (`messages`, `leaderboard`, `user_predictions`, `match_votes`, `banned_users`, `news`, `polls/current_poll`) are no longer used and the new rules block them. Delete them in the console.
+3. **Render**: create the service from `render.yaml` (or by hand: build `npm ci && npm run build`, start `npm start`) and set:
+   - `FOOTBALL_DATA_KEY`: your football-data.org key
+   - `FIREBASE_SERVICE_ACCOUNT`: the service account JSON, pasted as one line
+   - `ADMIN_EMAILS`: comma-separated admin Google emails (set the same list as `VITE_ADMIN_EMAILS` so the app shows them the Admin link)
+4. **Keep it awake.** Render's free tier sleeps after 15 minutes, which delays results and makes the first visit slow. Point a free pinger (e.g. cron-job.org) at `https://<your-app>/api/health` every 10 minutes, or use Render's $7/month plan.
+
+### Upgrading the data later
+The free football-data.org tier has slightly delayed scores and no minute-by-minute events. A paid plan (football-data.org, or API-Football from about $19/month) adds true live scores, goal scorers and lineups. Only `server/football.js` needs to change.
