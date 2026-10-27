@@ -3,6 +3,7 @@
 import { db, FieldValue } from './firebase.js';
 import { getMatches } from './football.js';
 import { bonusQuestions, validBonusAnswer, scoreBonus } from '../src/lib/game.js';
+import { clip } from './moderation.js';
 
 const fail = (status, message) => { throw Object.assign(new Error(message), { status, expose: true }); };
 const answersCol = db.collection('bonusAnswers');
@@ -97,8 +98,8 @@ export async function setCustomQuestion(md, question, options) {
   const gw = matches.filter((m) => m.matchday === md);
   if (!gw.length) fail(404, 'No games in that gameweek.');
   if (lockAt(gw) <= Date.now()) fail(400, 'That gameweek has kicked off, so it’s too late to add a question.');
-  const text = String(question || '').trim().slice(0, 120);
-  const opts = (options || []).map((o) => String(o || '').trim().slice(0, 40)).filter(Boolean);
+  const text = clip(String(question || '').trim(), 120);
+  const opts = (options || []).map((o) => clip(String(o || '').trim(), 40)).filter(Boolean);
   if (text.length < 5) fail(400, 'Write a question.');
   if (opts.length < 2 || opts.length > 4) fail(400, 'Give 2 to 4 answers.');
   await customCol.doc(key(md)).set({

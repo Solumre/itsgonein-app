@@ -20,7 +20,7 @@ import { pageMeta, renderPage, sitemap } from './seo.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
 import { findHighlights, getHighlight, getPreview, searchFor, searchCandidates, channelStatus, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
-import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
+import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit, clip } from './moderation.js';
 import { scorePick, validDoubles, AVATARS, GAMES } from '../src/lib/game.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -864,15 +864,15 @@ app.post('/api/admin/ban', requireUser, requireAdmin, wrap(async (req, res) => {
 }));
 
 app.post('/api/admin/ticker', requireUser, requireAdmin, wrap(async (req, res) => {
-  const message = String(req.body?.message || '').trim().slice(0, 140);
+  const message = clip(String(req.body?.message || '').trim(), 140);
   await db.collection('settings').doc('ticker').set({ message, active: !!message });
   res.json({ ok: true });
 }));
 
 app.post('/api/admin/poll', requireUser, requireAdmin, wrap(async (req, res) => {
-  const title = String(req.body?.title || 'Player of the Week').slice(0, 60);
+  const title = clip(req.body?.title || 'Player of the Week', 60);
   const options = (req.body?.options || [])
-    .map((o, i) => ({ id: `p${i + 1}`, name: String(o.name || '').trim().slice(0, 30), team: String(o.team || '').trim().slice(0, 30) }))
+    .map((o, i) => ({ id: `p${i + 1}`, name: clip(String(o.name || '').trim(), 30), team: clip(String(o.team || '').trim(), 30) }))
     .filter((o) => o.name);
   if (options.length < 2 || options.length > 6) fail(400, 'Add 2 to 6 players.');
   await db.collection('polls').doc('current').set({ id: `poll_${Date.now()}`, title, options, createdAt: FieldValue.serverTimestamp() });

@@ -14,6 +14,7 @@ import Sheet from '../components/Sheet';
 import { Spinner, ErrorBox, Segmented, Empty } from '../components/Bits';
 import { ChallengeButton } from '../components/H2H';
 import PickReactions from '../components/PickReactions';
+import EmojiPicker from '../components/EmojiPicker';
 
 const boardLive = (d) => d?.matches?.some((m) => m.status === 'live');
 
@@ -109,6 +110,7 @@ function Chat({ code, board, myUid }) {
   const { data: game } = useGameMatches();
   const myPicks = useMyPicks(myUid);
   const [text, setText] = useState('');
+  const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -195,7 +197,8 @@ function Chat({ code, board, myUid }) {
         {error && <p className="form-error">{error}</p>}
         <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) send({ text }); }} className="composer-row">
           <button type="button" className="icon-btn" onClick={() => setSharing(true)} aria-label="Share your pick" title="Share your pick">🔮</button>
-          <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder={`Message as ${profile?.nickname}…`} aria-label="Message" />
+          <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder={`Message as ${profile?.nickname}…`} aria-label="Message" />
+          <EmojiPicker inputRef={inputRef} value={text} onChange={setText} up />
           <button className="send" disabled={busy || !text.trim()} aria-label="Send"><Send size={18} /></button>
         </form>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, query, where, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useApi, useNow, useMyLeagues, useSnapshot } from '../lib/hooks';
 import { QUICK_CHAT } from '../lib/game';
 import { ago } from '../lib/format';
 import PickReactions from '../components/PickReactions';
+import EmojiPicker from '../components/EmojiPicker';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { dayLabel, timeLabel, ordinal } from '../lib/format';
@@ -165,6 +166,7 @@ function MatchTalk({ m }) {
   const { data: leagues } = useMyLeagues(user?.uid);
   const [picked, setPicked] = useState(null);
   const [text, setText] = useState('');
+  const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const code = picked || leagues?.[0]?.id || null;
@@ -213,7 +215,8 @@ function MatchTalk({ m }) {
         {Object.entries(QUICK_CHAT).slice(0, 6).map(([id, t]) => <button key={id} className="chip chip-sm" disabled={busy} onClick={() => send({ quick: id })}>{t}</button>)}
       </div>
       <form className="composer-row" onSubmit={(e) => { e.preventDefault(); if (text.trim()) send({ text }); }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder={`Message as ${profile?.nickname || 'you'}…`} aria-label="Message about this game" />
+        <input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder={`Message as ${profile?.nickname || 'you'}…`} aria-label="Message about this game" />
+        <EmojiPicker inputRef={inputRef} value={text} onChange={setText} up />
         <button className="send" disabled={busy || !text.trim()} aria-label="Send"><Send size={18} /></button>
       </form>
       <p className="hint">Goes to your {leagues.find((l) => l.id === code)?.name} chat too. Be kind!</p>
