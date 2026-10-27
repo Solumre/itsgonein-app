@@ -141,8 +141,16 @@ function matchJson(m, code, now) {
     stage: LEAGUES[code].stage || 'REGULAR_SEASON',
     homeTeam: toTeam(m.home),
     awayTeam: toTeam(m.away),
-    score: { fullTime: st.score },
+    score: { fullTime: st.score, halfTime: halfTime(m, st) },
   };
+}
+
+// The half-time score, once half-time has been reached.
+function halfTime(m, st) {
+  if (st.status === 'TIMED' || st.status === 'POSTPONED' || (st.status === 'IN_PLAY' && st.minute <= 45)) return { home: null, away: null };
+  const ht = { home: 0, away: 0 };
+  for (const [side, min] of m.goalMinutes) if (min <= 45) ht[side]++;
+  return ht;
 }
 
 function standings(code, now) {

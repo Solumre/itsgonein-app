@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Lock, MapPin } from 'lucide-react';
 import { useApi, useNow } from '../lib/hooks';
+import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { dayLabel, timeLabel, ordinal } from '../lib/format';
 import { clubColors } from '../lib/clubs';
@@ -81,6 +82,74 @@ function Lineups({ lineups, m }) {
     <section className="card">
       <h2 className="section-title">Line-ups</h2>
       <div className="mc-lineups">{col('home')}{col('away')}</div>
+    </section>
+  );
+}
+
+const LIVE_TEXT = {
+  next: (q) => ({ title: '⚽ Who scores next?', sub: q?.at ? `Asked at ${q.at.home}–${q.at.away}` : '', pts: 2 }),
+  h1: () => ({ title: '⏱️ Goal before half-time?', sub: 'Still 0–0', pts: 1 }),
+  h2: () => ({ title: '⏱️ Goal in the second half?', sub: 'No second-half goals yet', pts: 1 }),
+};
+const HISTORY_TEXT = { next: 'Next goal', h1: 'Goal before half-time', h2: 'Goal in the second half' };
+const optionLabel = (o, m) => ({ home: m.home.tla, away: m.away.tla, none: 'No more goals', yes: 'Yes', no: 'No' }[o]);
+const RESULT_ICON = (h) => (h.result == null ? '⏳' : h.result === 'void' ? '➖' : h.points > 0 ? '✅' : '❌');
+
+function LivePicks({ live, m, competition, onAnswered }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(null);
+  const send = async (qid, answer) => {
+    setBusy(qid);
+    try {
+      await api(`/api/match/${m.id}/live?competition=${competition}`, { method: 'POST', body: { qid, answer } });
+      toast('🔒 Locked in!', 'good');
+      await onAnswered();
+    } catch (e) { toast(e.message, 'bad'); }
+    setBusy(null);
+  };
+  return (
+    <section className="card live-picks">
+      <header className="lp-head">
+        <h2 className="section-title">⚡ Live picks</h2>
+        {live.points > 0 && <span className="pts-chip exact">+{live.points}</span>}
+      </header>
+      {live.open.length === 0 && m.status === 'live' && <p className="hint">No questions open right now. A new one opens after every goal.</p>}
+      {live.open.map((q) => {
+        const t = LIVE_TEXT[q.kind](q);
+        return (
+          <div key={q.id} className="lp-q">
+            <div className="lp-title"><b>{t.title}</b><small>{t.sub} · right answer +{t.pts}</small></div>
+            <div className={`lp-options n${q.options.length}`}>
+              {q.options.map((o) => (
+                <button key={o} className={`lp-opt${q.mine === o ? ' mine' : ''}`} disabled={!!q.mine || busy === q.id} onClick={() => send(q.id, o)}>
+                  <span>{optionLabel(o, m)}</span>
+                  {q.mates.filter((x) => x.answer === o).length > 0 && (
+                    <span className="lp-mates">{q.mates.filter((x) => x.answer === o).slice(0, 4).map((x) => <Avatar key={x.nickname} user={x} size={20} />)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {q.mine && <p className="hint">🔒 Locked in. We&apos;ll mark it when it happens.</p>}
+          </div>
+        );
+      })}
+      {live.history.length > 0 && (
+        <ul className="lp-history">
+          {live.history.map((h) => (
+            <li key={h.qid}>
+              <span>{RESULT_ICON(h)}</span>
+              <span className="who">{HISTORY_TEXT[h.kind]}{h.kind === 'next' ? ` at ${h.qid.slice(5).replace('-', '–')}` : ''}
+                <small>You said {optionLabel(h.answer, m)}{h.result && h.result !== 'void' && h.result !== h.answer ? `, it was ${optionLabel(h.result, m)}` : ''}</small>
+              </span>
+              {h.points > 0 && <span className="pts-chip exact">+{h.points}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+      {live.board.length > 1 && (
+        <p className="lp-board">This game: {live.board.map((b) => <span key={b.uid} className={b.me ? 'me' : ''}>{b.me ? 'You' : b.nickname} <b>{b.points}</b></span>)}</p>
+      )}
+      <p className="hint">Each live point is worth 5 XP. Live picks don&apos;t change league tables.</p>
     </section>
   );
 }
@@ -216,6 +285,7 @@ export default function MatchCentre() {
       </button>
       <Scoreboard m={m} past={data.past} />
       <Highlights h={data.highlight} />
+      {data.live && <LivePicks live={data.live} m={m} competition={competition} onAnswered={reload} />}
       {user && !data.past && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} />}
       <Timeline events={m.events} m={m} />
       <Lineups lineups={m.lineups} m={m} />
