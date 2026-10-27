@@ -1,7 +1,7 @@
 // Gameweek recaps: a personal summary once every game in a gameweek is done, and a
 // "gameweek wrapped" message in each league's chat naming the week's podium.
 import { db, FieldValue } from './firebase.js';
-import { gameweekComplete, rankRows } from '../src/lib/game.js';
+import { gameweekComplete, rankRows, GAMES, roundLabel } from '../src/lib/game.js';
 
 export { gameweekComplete };
 
@@ -32,10 +32,13 @@ async function picksFor(uids, gwMatches) {
 }
 
 // Everything the recap card shows, for one player and one finished gameweek.
-export async function buildRecap(uid, md, matches) {
+export async function buildRecap(uid, md, allMatches, competition = 'PL') {
+  const matches = allMatches.filter((m) => m.competition === competition);
+  const { statsKey } = GAMES[competition];
   const gwMatches = matches.filter((m) => m.matchday === md && m.status === 'finished');
   const me = await db.collection('users').doc(uid).get();
-  const stats = me.data()?.stats || {};
+  const stats = me.data()?.[statsKey] || {};
+  const overall = me.data()?.stats || {};
   const picks = await picksFor([uid], gwMatches);
 
   let points = 0, exact = 0, results = 0, best = null;
@@ -57,8 +60,8 @@ export async function buildRecap(uid, md, matches) {
   const memberDocs = memberIds.length ? await db.getAll(...memberIds.map((u) => db.collection('users').doc(u))) : [];
   // Only players with a settled pick that gameweek count (like the league's wrap message).
   const gwPoints = Object.fromEntries(memberDocs
-    .filter((d) => d.exists && d.data().stats?.gw?.[md] != null)
-    .map((d) => [d.id, { nickname: d.data().nickname, points: d.data().stats.gw[md] }]));
+    .filter((d) => d.exists && d.data()[statsKey]?.gw?.[md] != null)
+    .map((d) => [d.id, { nickname: d.data().nickname, points: d.data()[statsKey].gw[md] }]));
   const leagues = leagueDocs.map((l) => {
     const ranked = rankRows(l.data().members.filter((u) => gwPoints[u]).map((u) => ({ uid: u, ...gwPoints[u] })));
     const mine = ranked.find((r) => r.uid === uid);
@@ -66,60 +69,75 @@ export async function buildRecap(uid, md, matches) {
   }).sort((a, b) => (a.rank ?? 99) / a.size - (b.rank ?? 99) / b.size);
 
   // Everyone who played this gameweek: how many you beat.
-  const all = (await db.collection('users').select('stats.gw').get()).docs
-    .map((d) => d.data().stats?.gw?.[md])
+  const all = (await db.collection('users').select(`${statsKey}.gw`).get()).docs
+    .map((d) => d.data()[statsKey]?.gw?.[md])
     .filter((v) => v != null);
   const beat = all.filter((v) => v < points).length;
   const percentile = all.length > 1 ? Math.round((beat / (all.length - 1)) * 100) : null;
   const average = all.length ? Math.round((all.reduce((a, b) => a + b, 0) / all.length) * 10) / 10 : null;
 
   return {
+    competition,
+    roundLabel: roundLabel(competition, md),
     matchday: md,
     nickname: me.data()?.nickname,
     avatar: me.data()?.avatar,
     club: me.data()?.club || null,
     points, exact, results, picked: picks.size, games: gwMatches.length,
     best, leagues, percentile, average, players: all.length,
-    streak: stats.streak || 0, level: stats.level || 1, seasonPoints: stats.points || 0,
+    streak: stats.streak || 0, level: overall.level || 1, seasonPoints: stats.points || 0,
   };
 }
 
 const wrapped = new Set(); // gameweeks this server knows are done, to skip the database check
 
-// Post "gameweek wrapped" into each league once, after its last game is settled.
-export async function wrapGameweek(matches, { now = Date.now() } = {}) {
+// Post "gameweek wrapped" into each league once per finished round, per competition.
+export async function wrapGameweek(allMatches, { now = Date.now() } = {}) {
+  const results = [];
+  for (const competition of Object.keys(GAMES)) {
+    const r = await wrapCompetition(allMatches.filter((m) => m.competition === competition), competition, now);
+    if (r) results.push(r);
+  }
+  return results.length ? results : null;
+}
+
+async function wrapCompetition(matches, competition, now) {
   const md = latestCompletedMatchday(matches, now);
-  if (!md || wrapped.has(md)) return null;
+  // Premier League keeps its original ids ("8", "gw_8") so earlier wraps aren't repeated.
+  const key = competition === 'PL' ? String(md) : `${competition}_${md}`;
+  if (!md || wrapped.has(key)) return null;
   try {
-    await db.collection('wraps').doc(String(md)).create({ at: FieldValue.serverTimestamp() });
+    await db.collection('wraps').doc(key).create({ at: FieldValue.serverTimestamp() });
   } catch (e) {
-    if (e.code === 6) { wrapped.add(md); return null; } // already wrapped
+    if (e.code === 6) { wrapped.add(key); return null; } // already wrapped
     throw e;
   }
-  wrapped.add(md);
+  wrapped.add(key);
+  const { statsKey } = GAMES[competition];
+  const label = `${competition === 'CL' ? '⭐ UCL ' : ''}${roundLabel(competition, md)}`;
   const gwMatches = matches.filter((m) => m.matchday === md && m.status === 'finished');
   const leagues = (await db.collection('leagues').get()).docs;
   let posted = 0;
   for (const l of leagues) {
     const { members } = l.data();
     const users = await db.getAll(...members.map((u) => db.collection('users').doc(u)));
-    const played = users.filter((d) => d.exists && d.data().stats?.gw?.[md] != null);
+    const played = users.filter((d) => d.exists && d.data()[statsKey]?.gw?.[md] != null);
     if (!played.length) continue;
     const picks = await picksFor(played.map((d) => d.id), gwMatches);
     const exacts = Object.fromEntries(played.map((d) => [d.id, gwMatches.filter((m) => picks.get(`${d.id}_${m.id}`)?.kind === 'exact').length]));
-    const ranked = rankRows(played.map((d) => ({ uid: d.id, nickname: d.data().nickname, points: d.data().stats.gw[md] })));
+    const ranked = rankRows(played.map((d) => ({ uid: d.id, nickname: d.data().nickname, points: d.data()[statsKey].gw[md] })));
     const winners = ranked.filter((r) => r.rank === 1);
-    let text = `📊 Gameweek ${md} wrapped! 👑 ${winners.map((w) => w.nickname).join(' & ')} ${winners.length > 1 ? 'shared' : 'won'} the week with ${winners[0].points} pts.`;
+    let text = `📊 ${label} wrapped! 👑 ${winners.map((w) => w.nickname).join(' & ')} ${winners.length > 1 ? 'shared' : 'won'} the ${competition === 'CL' ? 'round' : 'week'} with ${winners[0].points} pts.`;
     const podium = ranked.filter((r) => r.rank > 1 && r.rank <= 3).map((r) => `${ordinal(r.rank)} ${r.nickname} ${r.points}`);
     if (podium.length) text += ` ${podium.join(', ')}.`;
-    const sniper = ranked.map((r) => ({ ...r, exact: exacts[r.uid] })).sort((a, b) => b.exact - a.exact)[0];
+    const sniper = ranked.map((r) => ({ ...r, exact: exacts[r.uid] })).sort((x, y) => y.exact - x.exact)[0];
     if (sniper?.exact >= 2) text += ` 🎯 Sharpshooter: ${sniper.nickname} with ${sniper.exact} exact scores.`;
     text += ' Check your recap on the Predict tab!';
-    await l.ref.collection('messages').doc(`gw_${md}`).set({
-      type: 'system', event: 'wrap', text, matchday: md, createdAt: FieldValue.serverTimestamp(), reactions: {},
+    await l.ref.collection('messages').doc(competition === 'PL' ? `gw_${md}` : `gw_${competition}_${md}`).set({
+      type: 'system', event: 'wrap', text, matchday: md, competition, createdAt: FieldValue.serverTimestamp(), reactions: {},
     });
     posted++;
   }
-  console.log(`gameweek ${md} wrapped in ${posted} league(s)`);
-  return { matchday: md, posted };
+  console.log(`${label} wrapped in ${posted} league(s)`);
+  return { competition, matchday: md, posted };
 }

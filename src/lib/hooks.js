@@ -50,8 +50,9 @@ export function useApi(path, { refresh = 0, fastRefresh = 60_000, isLive } = {})
 const anyLive = (d) => d?.matches?.some((m) => m.status === 'live'
   || (m.status === 'upcoming' && Math.abs(new Date(m.kickoff) - Date.now()) < 20 * 60_000));
 
+// Pass null to skip fetching (e.g. a competition that isn't on screen).
 export function useMatches(competition = 'PL') {
-  return useApi(`/api/matches?competition=${competition}`, { refresh: 5 * 60_000, isLive: anyLive });
+  return useApi(competition ? `/api/matches?competition=${competition}` : null, { refresh: 5 * 60_000, isLive: anyLive });
 }
 
 // Live Firestore query or doc (memoised by the caller). A null/false ref watches nothing.

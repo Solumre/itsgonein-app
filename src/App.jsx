@@ -32,7 +32,7 @@ function Ticker({ matches }) {
     ...(message ? [<span key="msg" className="ticker-msg">📢 {message}</span>] : []),
     ...live.map((m) => (
       <span key={m.id} className="ticker-item">
-        {m.home.tla} <b>{m.score?.home}–{m.score?.away}</b> {m.away.tla}
+        {m.competition === 'CL' && '⭐ '}{m.home.tla} <b>{m.score?.home}–{m.score?.away}</b> {m.away.tla}
         <small>{m.paused ? 'HT' : m.minute ? `${m.minute}'` : 'LIVE'}</small>
       </span>
     )),
@@ -55,7 +55,9 @@ const NAV = [
 function Shell({ children }) {
   const { user, profile, isAdmin } = useSession();
   const matches = useMatches('PL');
-  const anyLive = matches.data?.matches?.some((m) => m.status === 'live');
+  const clMatches = useMatches('CL');
+  const allMatches = [...(matches.data?.matches || []), ...(clMatches.data?.matches || [])];
+  const anyLive = allMatches.some((m) => m.status === 'live');
   const home = user ? '/predict' : '/';
   return (
     <GameMatches.Provider value={matches}>
@@ -72,7 +74,7 @@ function Shell({ children }) {
             ) : !user && <Link to="/" className="btn btn-sm">Sign in</Link>}
           </div>
         </header>
-        <Ticker matches={matches.data?.matches} />
+        <Ticker matches={allMatches} />
         <nav className="nav" aria-label="Main">
           <Link to={home} className="brand nav-brand">ITS<span>GONE</span>IN<i>.</i></Link>
           {NAV.map(({ to, label, icon: Icon }) => (

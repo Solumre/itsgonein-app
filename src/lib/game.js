@@ -181,3 +181,17 @@ export function rankRows(rows) {
   });
 }
 
+
+// Competitions you can predict. Premier League points live in `stats`, Champions League
+// points in `statsCL`, so every league has a separate Champions League table.
+const CL_ROUND_NAMES = { 9: 'Play-offs', 10: 'Round of 16', 11: 'Quarter-finals', 12: 'Semi-finals', 13: 'Final' };
+export const GAMES = {
+  PL: { code: 'PL', name: 'Premier League', short: 'Premier League', statsKey: 'stats', emoji: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+  CL: { code: 'CL', name: 'Champions League', short: 'UCL', statsKey: 'statsCL', emoji: '⭐' },
+};
+export const competitionOf = (pick) => pick.competition || 'PL';
+
+export function roundLabel(competition, md) {
+  if (competition === 'CL') return CL_ROUND_NAMES[md] || `Matchday ${md}`;
+  return `Gameweek ${md}`;
+}

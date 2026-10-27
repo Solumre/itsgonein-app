@@ -78,11 +78,22 @@ export default function Me() {
       </section>
 
       <section className="stat-grid">
-        <div><b>{s.points || 0}</b><span>points</span></div>
+        <div><b>{s.points || 0}</b><span>PL points</span></div>
         <div><b>{s.exact || 0}</b><span>exact scores</span></div>
         <div><b>{s.results || 0}/{s.played || 0}</b><span>right results</span></div>
         <div><b>{s.bestStreak || 0}🔥</b><span>best streak</span></div>
       </section>
+
+      {profile.statsCL?.played > 0 && (
+        <section className="card cl-line kit cl-night">
+          <span className="eyebrow">⭐ Champions League</span>
+          <div className="cl-stats">
+            <div><b>{profile.statsCL.points}</b><span>points</span></div>
+            <div><b>{profile.statsCL.exact}</b><span>exact</span></div>
+            <div><b>{profile.statsCL.results}/{profile.statsCL.played}</b><span>results</span></div>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="section-title">Badges <small>{earned.size}/{BADGES.length}</small></h2>

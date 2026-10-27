@@ -35,7 +35,7 @@ service cloud.firestore {
     function validPick(pid) {
       let d = request.resource.data;
       let m = get(/databases/$(database)/documents/matches/$(d.matchId)).data;
-      return d.keys().hasOnly(['uid', 'matchId', 'home', 'away', 'double', 'kickoff', 'matchday', 'updatedAt'])
+      return d.keys().hasOnly(['uid', 'matchId', 'competition', 'home', 'away', 'double', 'kickoff', 'matchday', 'updatedAt'])
         && d.uid == request.auth.uid
         && d.matchId is string
         && pid == request.auth.uid + '_' + d.matchId
@@ -43,7 +43,9 @@ service cloud.firestore {
         && d.away is int && d.away >= 0 && d.away <= 15
         && d.double is bool
         && d.updatedAt == request.time
-        && m.competition == 'PL'
+        && m.competition in ['PL', 'CL']
+        // Older app versions don't send a competition; those picks are Premier League.
+        && (d.get('competition', 'PL') == m.competition)
         && m.status == 'upcoming'
         && d.kickoff == m.kickoff
         && d.matchday == m.matchday

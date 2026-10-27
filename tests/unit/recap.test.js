@@ -35,6 +35,9 @@ describe('headline', () => {
     expect(headline({ ...base, leagues: [{ rank: 1, size: 5 }] })).toBe('👑 Won the week in my league!');
     expect(headline({ ...base, leagues: [{ rank: 2, size: 5 }] })).toBe('2nd of 5 in my league this week');
   });
+  it('says round for the Champions League', () => {
+    expect(headline({ ...base, competition: 'CL', leagues: [{ rank: 1, size: 3 }] })).toBe('👑 Won the round in my league!');
+  });
   it('falls back to percentile, then season points', () => {
     expect(headline({ ...base, percentile: 72, players: 30 })).toBe('Better than 72% of players');
     expect(headline(base)).toBe('40 points this season');

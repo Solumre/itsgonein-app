@@ -212,3 +212,12 @@ describe('recap endpoint', () => {
     expect((await api(sam, 'GET', '/api/recap?matchday=8')).body.recap).toMatchObject({ matchday: 8, nickname: 'SamTheMan' });
   });
 });
+
+describe('Champions League in leagues', () => {
+  it('serves a separate Champions League table', async () => {
+    const board = (await api(sam, 'GET', `/api/leagues/${league}/board?competition=CL`)).body;
+    expect(board).toMatchObject({ competition: 'CL', matchday: 4 });
+    expect(board.rows.find((r) => r.uid === sam.uid)).toMatchObject({ season: 0 });
+    expect((await api(sam, 'GET', `/api/leagues/${league}/board?competition=XX`)).status).toBe(400);
+  });
+});

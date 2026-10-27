@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Send, Share2, Settings, Flag, Ban, Trash2, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
-import { useApi, useMessages, useMyPicks } from '../lib/hooks';
-import { QUICK_CHAT, REACTIONS } from '../lib/game';
+import { useApi, useMessages, useMyPicks, useMatches } from '../lib/hooks';
+import { QUICK_CHAT, REACTIONS, roundLabel } from '../lib/game';
 import { ago, ordinal } from '../lib/format';
 import { useGameMatches } from '../App';
 import { useToast } from '../components/Toast';
@@ -26,7 +26,7 @@ function Table({ board, me }) {
   return (
     <section>
       <div className="table-head">
-        <Segmented label="Table" value={mode} onChange={setMode} options={[{ value: 'season', label: 'Season' }, { value: 'gw', label: `Gameweek ${board.matchday}` }]} />
+        <Segmented label="Table" value={mode} onChange={setMode} options={[{ value: 'season', label: board.competition === 'CL' ? 'Overall' : 'Season' }, { value: 'gw', label: roundLabel(board.competition, board.matchday) }]} />
         {live && <span className="live-pill">LIVE</span>}
       </div>
       <ol className="standings">
@@ -257,11 +257,17 @@ export default function League() {
   const { code } = useParams();
   const { user } = useSession();
   const [tab, setTab] = useState('table');
-  const [md, setMd] = useState(null);
+  const [comp, setCompState] = useState(() => { try { return localStorage.getItem('igi-comp') === 'CL' ? 'CL' : 'PL'; } catch { return 'PL'; } });
+  const setComp = (c) => { setCompState(c); try { localStorage.setItem('igi-comp', c); } catch { /* ignore */ } };
+  const [mdBy, setMdBy] = useState({});
+  const md = mdBy[comp] ?? null;
+  const setMd = (n) => setMdBy((x) => ({ ...x, [comp]: n }));
   const [manage, setManage] = useState(false);
   const toast = useToast();
-  const { data: game } = useGameMatches();
-  const path = `/api/leagues/${code}/board${md ? `?matchday=${md}` : ''}`;
+  const { data: plGame } = useGameMatches();
+  const { data: clGame } = useMatches(comp === 'CL' ? 'CL' : null);
+  const game = comp === 'CL' ? clGame : plGame;
+  const path = `/api/leagues/${code}/board?competition=${comp}${md ? `&matchday=${md}` : ''}`;
   const { data: board, error, loading, reload } = useApi(path, { refresh: 3 * 60_000, fastRefresh: 45_000, isLive: boardLive });
   const maxMd = Math.max(1, ...(game?.matches || []).map((m) => m.matchday || 1));
 
@@ -278,6 +284,8 @@ export default function League() {
   const me = board.rows.find((r) => r.uid === user.uid);
   const myRank = [...board.rows].sort((a, b) => b.season - a.season).findIndex((r) => r.uid === user.uid) + 1;
   const gw = board.matchday;
+  const isCL = board.competition === 'CL';
+  const short = isCL ? ({ 9: 'Play-offs', 10: 'R16', 11: 'QF', 12: 'SF', 13: 'Final' }[gw] || `MD ${gw}`) : `GW ${gw}`;
 
   return (
     <div className={`page league${tab === 'chat' ? ' league-chat' : ''}`}>
@@ -285,7 +293,7 @@ export default function League() {
         <div>
           <span className="eyebrow">League · {board.rows.length} players</span>
           <h1>{board.name}</h1>
-          {me && <p className="league-rank">You're <b>{ordinal(myRank)}</b> with <b>{me.season}</b> pts</p>}
+          {me && <p className="league-rank">You're <b>{ordinal(myRank)}</b> with <b>{me.season}</b> pts{isCL ? ' in the ⭐ UCL table' : ''}</p>}
         </div>
         <div className="league-actions">
           <button className="btn btn-sm" onClick={invite}><Share2 size={16} /> Invite</button>
@@ -298,12 +306,18 @@ export default function League() {
         <Segmented label="League" value={tab} onChange={setTab} options={[{ value: 'table', label: 'Table' }, { value: 'chat', label: 'Chat' }, { value: 'picks', label: 'Picks' }]} />
         {tab !== 'chat' && (
           <div className="gw-mini">
-            <button className="icon-btn" aria-label="Previous gameweek" disabled={gw <= 1} onClick={() => setMd(gw - 1)}><ChevronLeft size={18} /></button>
-            <span>GW {gw}</span>
-            <button className="icon-btn" aria-label="Next gameweek" disabled={gw >= maxMd} onClick={() => setMd(gw + 1)}><ChevronRight size={18} /></button>
+            <button className="icon-btn" aria-label="Previous round" disabled={gw <= 1} onClick={() => setMd(gw - 1)}><ChevronLeft size={18} /></button>
+            <span>{short}</span>
+            <button className="icon-btn" aria-label="Next round" disabled={gw >= maxMd} onClick={() => setMd(gw + 1)}><ChevronRight size={18} /></button>
           </div>
         )}
       </div>
+      {tab !== 'chat' && (
+        <Segmented label="Competition" value={comp} onChange={setComp} options={[
+          { value: 'PL', label: 'Premier League' },
+          { value: 'CL', label: '⭐ Champions League' },
+        ]} />
+      )}
 
       {tab === 'table' && <Table board={board} me={user.uid} />}
       {tab === 'picks' && <Picks board={board} />}
