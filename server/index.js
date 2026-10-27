@@ -12,6 +12,7 @@ import { syncNow, startSyncLoop, toGameMatch, gameMatches, recomputeUser, matche
 import { buildRecap, gameweekComplete } from './recap.js';
 import { createChallenge, respondChallenge, cancelChallenge, listChallenges, openRound } from './h2h.js';
 import { listTrophies } from './trophies.js';
+import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion } from './quiz.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
 import { findHighlights, getHighlight, latestHighlights, getChannels, setChannels, resolveChannel, saveHighlight, videoIdFrom } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
@@ -184,6 +185,62 @@ async function liveFor(uid, match, memberIds, people) {
     .sort((a, b) => b.points - a.points || (a.me ? -1 : b.me ? 1 : 0));
   if (!open.length && !history.length) return null;
   return { open, history, board, points: history.reduce((s, h) => s + h.points, 0) };
+}
+
+// --- daily quiz -------------------------------------------------------------------------
+const loadQuizData = async () => {
+  const [matches, standings, scorers, teams] = await Promise.all([
+    getMatches('PL').catch(() => []), getStandings('PL').catch(() => []), getScorers('PL').catch(() => []), getTeams('PL').catch(() => []),
+  ]);
+  return { matches, table: standings[0]?.table || [], scorers, teams };
+};
+
+// Today's questions (answers only for ones you've answered), your progress, and your
+// league mates' scores.
+app.get('/api/quiz', optionalUser, wrap(async (req, res) => {
+  const date = quizDate();
+  const questions = await getQuiz(date, loadQuizData);
+  let play = null, stats = null, mates = [];
+  if (req.user) {
+    const uid = req.user.uid;
+    [play, stats] = await Promise.all([getPlay(uid, date), quizStats(uid, date)]);
+    const ids = [...new Set((await leagues.where('members', 'array-contains', uid).get()).docs.flatMap((l) => l.data().members))].filter((u) => u !== uid);
+    const [ps, people] = await Promise.all([playsFor(ids, date), ids.length ? db.getAll(...ids.map((u) => users.doc(u))) : []]);
+    const who = Object.fromEntries(people.filter((d) => d.exists).map((d) => [d.id, d.data()]));
+    mates = ps.filter((p) => who[p.uid]).map((p) => ({ uid: p.uid, nickname: who[p.uid].nickname, avatar: who[p.uid].avatar, score: p.score, done: !!p.done }))
+      .sort((a, b) => b.score - a.score || a.nickname.localeCompare(b.nickname));
+  }
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    date,
+    questions: questions.map((x, i) => (play?.answers?.[i] != null ? { ...x, chosen: play.answers[i] } : publicQuestion(x))),
+    play: play && { score: play.score, done: !!play.done },
+    stats, mates,
+  });
+}));
+
+app.post('/api/quiz/answer', requireUser, wrap(async (req, res) => {
+  const date = quizDate();
+  const questions = await getQuiz(date, loadQuizData);
+  const r = await answerQuestion({ uid: req.user.uid, date, questions, n: Number(req.body?.n), choice: Number(req.body?.choice) });
+  if (r.done) {
+    await recomputeUser(req.user.uid, matchesByCompetition(await gameMatches())).catch((e) => console.error('quiz xp', e.message));
+    if (r.score === questions.length) await announcePerfectQuiz(req.user.uid, date).catch((e) => console.error('quiz announce', e.message));
+  }
+  res.json(r);
+}));
+
+// A perfect score gets a shout in the player's leagues.
+async function announcePerfectQuiz(uid, date) {
+  const me = await users.doc(uid).get();
+  if (!me.exists) return;
+  const ls = await leagues.where('members', 'array-contains', uid).get();
+  for (const l of ls.docs) {
+    await l.ref.collection('messages').doc(`quiz_${date}_${uid}`).set({
+      type: 'system', event: 'quiz', text: `🧠 ${me.data().nickname} got 5/5 in today's quiz! Can you match it?`,
+      createdAt: FieldValue.serverTimestamp(), reactions: {},
+    });
+  }
 }
 
 app.post('/api/match/:id/live', requireUser, wrap(async (req, res) => {
