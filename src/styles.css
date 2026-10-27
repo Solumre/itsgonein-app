@@ -616,3 +616,17 @@ p { margin: 0; }
 .reminder-text strong { font: 800 20px/1.1 var(--display); text-transform: uppercase; }
 .reminder-text p { color: var(--dim); font-size: 15px; margin-top: 2px; }
 .reminder-actions { grid-column: 2; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* ---------- recap ---------- */
+.recap-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 0; }
+.recap-banner strong { display: block; font: italic 800 22px/1.05 var(--display); text-transform: uppercase; margin-top: 4px; }
+.recap-banner-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.recap-banner .btn { white-space: nowrap; }
+.recap-banner .recap-open, .gw-recap-btn { background: rgba(0, 0, 0, 0.3); color: #fff; box-shadow: none; }
+.recap-banner .link-btn { color: inherit; opacity: 0.8; }
+.gw-recap-btn { display: flex; margin: 12px auto 0; }
+.recap { display: flex; flex-direction: column; gap: 12px; }
+.recap-img { width: 100%; max-width: 420px; align-self: center; border-radius: 18px; box-shadow: var(--shadow); aspect-ratio: 1080 / 1350; }
+.recap-facts { display: grid; gap: 6px; }
+.recap-facts p { background: var(--card-2); border-radius: 12px; padding: 10px 12px; font-size: 15px; }
+.recap-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }

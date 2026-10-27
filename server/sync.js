@@ -5,6 +5,7 @@ import { db, Timestamp, FieldValue } from './firebase.js';
 import { getMatches, GAME_COMPETITION } from './football.js';
 import { computeStats } from '../src/lib/game.js';
 import { sendDueReminders } from './reminders.js';
+import { wrapGameweek } from './recap.js';
 
 const synced = new Map(); // matchId -> fingerprint of what Firestore holds
 let loaded = false;
@@ -85,6 +86,7 @@ async function runSync() {
   if (toSettle.length) await settle(toSettle, matches);
   for (const m of toAnnounceKickoff) await announceKickoff(m).catch((e) => console.error('kickoff announce', e));
   for (const m of toAnnounceResult) await announceResult(m).catch((e) => console.error('result announce', e));
+  await wrapGameweek(matches).catch((e) => console.error('gameweek wrap', e));
   return { matches: matches.length, settled: toSettle.length };
 }
 

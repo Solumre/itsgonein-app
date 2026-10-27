@@ -8,6 +8,7 @@ import {
   COMPETITIONS, GAME_COMPETITION, isCompetition, getMatches, getStandings, getScorers, getTeams, currentMatchday,
 } from './football.js';
 import { syncNow, startSyncLoop, toGameMatch } from './sync.js';
+import { buildRecap, gameweekComplete } from './recap.js';
 import { checkText, checkNickname, QUICK_CHAT, REACTIONS, rateLimit } from './moderation.js';
 import { scorePick, validDoubles, AVATARS } from '../src/lib/game.js';
 
@@ -389,6 +390,14 @@ app.get('/api/leagues/:code/board', requireUser, wrap(async (req, res) => {
   });
 
   res.json({ code: l.id, name, owner, matchday: md, matches: gwMatches, rows, picks: revealed });
+}));
+
+// Your recap for a finished gameweek.
+app.get('/api/recap', requireUser, wrap(async (req, res) => {
+  const matches = await getMatches(GAME_COMPETITION);
+  const md = Number(req.query.matchday);
+  if (!Number.isInteger(md) || !gameweekComplete(matches, md)) fail(400, "That gameweek isn't finished yet.");
+  res.json({ recap: await buildRecap(req.user.uid, md, matches) });
 }));
 
 // --- chat ----------------------------------------------------------------------------
