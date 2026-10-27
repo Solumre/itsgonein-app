@@ -14,6 +14,9 @@ export default function Admin() {
   const { data, error, loading, reload } = useApi(isAdmin ? '/api/admin/overview' : null, { refresh: 60_000 });
   const [ticker, setTicker] = useState('');
   const [poll, setPoll] = useState(['', '', ''].map(() => ({ name: '', team: '' })));
+  const { data: bonus, reload: reloadBonus } = useApi(isAdmin ? '/api/admin/bonus' : null);
+  const [bq, setBq] = useState({ question: '', options: ['', '', ''] });
+  const nextMd = bonus?.nextMatchday ?? null;
   const toast = useToast();
   if (!isAdmin) return <Navigate to="/predict" replace />;
 
@@ -72,6 +75,34 @@ export default function Admin() {
             <button className="btn btn-sm">Start poll</button>
           </div>
         </form>
+      </section>
+
+      <section className="card">
+        <h2 className="section-title">Bonus question</h2>
+        <p className="hint">Add an extra multiple-choice question to {nextMd ? <b>Gameweek {nextMd}</b> : 'the next gameweek'} (worth 2 points), like "Who scores first in ARS v TOT?". Mark the answer below after the game.</p>
+        <form onSubmit={(e) => { e.preventDefault(); run(() => api('/api/admin/bonus', { method: 'POST', body: { matchday: nextMd, ...bq } }), 'Bonus question added').then(reloadBonus); }}>
+          <div className="field"><input placeholder="Question" value={bq.question} maxLength={120} onChange={(e) => setBq({ ...bq, question: e.target.value })} /></div>
+          {bq.options.map((o, i) => (
+            <div key={i} className="field"><input placeholder={`Answer ${i + 1}`} value={o} maxLength={40} onChange={(e) => setBq({ ...bq, options: bq.options.map((x, j) => (j === i ? e.target.value : x)) })} /></div>
+          ))}
+          <div className="row-form">
+            {bq.options.length < 4 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBq({ ...bq, options: [...bq.options, ''] })}>+ Answer</button>}
+            <button className="btn btn-sm" disabled={!nextMd}>Add question</button>
+          </div>
+        </form>
+        {(bonus?.questions || []).map((q) => (
+          <article key={q.matchday} className="report">
+            <header><b>GW {q.matchday}: {q.question}</b><small>{q.answer ? 'Marked' : 'Needs an answer'}</small></header>
+            <div className="report-actions">
+              {q.options.map((o) => (
+                <button key={o.id} className={`btn btn-sm ${q.answer === o.id ? '' : 'btn-ghost'}`}
+                  onClick={() => run(() => api(`/api/admin/bonus/${q.matchday}/answer`, { method: 'POST', body: { answer: o.id } }), `Marked "${o.label}" as the answer`).then(reloadBonus)}>
+                  {q.answer === o.id ? '✓ ' : ''}{o.label}
+                </button>
+              ))}
+            </div>
+          </article>
+        ))}
       </section>
 
       <section className="card">

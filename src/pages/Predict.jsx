@@ -14,6 +14,7 @@ import Confetti from '../components/Confetti';
 import { Spinner, ErrorBox, Empty, Segmented } from '../components/Bits';
 import { ReminderPrompt } from '../components/Reminders';
 import { RecapSheet, RecapBanner, recapSeen } from '../components/Recap';
+import BonusCard from '../components/Bonus';
 
 const isOpen = (m, now) => m.status === 'upcoming' && new Date(m.kickoff).getTime() > now;
 
@@ -193,6 +194,8 @@ export default function Predict() {
   }
   const showBanner = lastDone && !bannerGone && !recapSeen(comp, lastDone);
   const label = roundLabel(comp, gw);
+  // Once the round is settled, show the stored total (it includes bonus questions).
+  const shownPoints = gameweekComplete(matches, gw) ? (profile?.[game.statsKey]?.gw?.[gw] ?? gwPoints) : gwPoints;
 
   return (
     <div className="page predict">
@@ -218,7 +221,7 @@ export default function Predict() {
           <button className="icon-btn" onClick={() => setMd(Math.min(maxMd, gw + 1))} disabled={gw >= maxMd} aria-label="Next round"><ChevronRight size={22} /></button>
         </div>
         <div className="gw-stats">
-          <div><b>{gwPoints}</b><span>{anyLive ? 'points (live)' : 'points'}</span></div>
+          <div><b>{shownPoints}</b><span>{anyLive ? 'points (live)' : 'points'}</span></div>
           <div><b>{picked}/{gwMatches.length}</b><span>picked</span></div>
           <div><b>{profile?.[game.statsKey]?.streak || 0}🔥</b><span>streak</span></div>
         </div>
@@ -244,6 +247,8 @@ export default function Predict() {
         </div>
       )}
 
+      {comp === 'PL' && gwMatches.length > 0 && <BonusCard key={gw} matchday={gw} />}
+
       <RecapSheet competition={comp} matchday={recapMd} open={!!recapMd} onClose={() => { setRecapMd(null); setBannerGone(true); }} />
 
       <details className="how">
@@ -253,6 +258,7 @@ export default function Predict() {
           <li>✅ <b>1 point</b> for the right result (win, draw or loss)</li>
           <li>✌️ <b>Double Up</b> one game a {comp === 'CL' ? 'round' : 'gameweek'} to double its points</li>
           {comp === 'CL' && <li>⏱️ Knockout games count the <b>score after 90 minutes</b>: extra time and penalties don't count.</li>}
+          {comp === 'PL' && <li>⭐ <b>Bonus questions</b> each gameweek add up to 8 more points.</li>}
           <li>⭐ Champions League points have their own table in each league.</li>
           <li>🔒 Picks lock at kickoff. Then everyone in your leagues can see them.</li>
         </ul>
