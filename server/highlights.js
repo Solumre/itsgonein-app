@@ -81,6 +81,41 @@ const EURO = [
   [/young boys/, ['young boys']],
   [/sparta/, ['sparta prague', 'sparta praha']],
   [/sturm/, ['sturm graz']],
+  // La Liga
+  [/celta/, ['celta vigo', 'celta']],
+  [/betis/, ['real betis', 'betis']],
+  [/real sociedad/, ['real sociedad']],
+  [/rayo/, ['rayo vallecano', 'rayo']],
+  [/alaves/, ['alaves']],
+  [/espanyol/, ['espanyol']],
+  [/mallorca/, ['mallorca']],
+  [/osasuna/, ['osasuna']],
+  [/girona/, ['girona']],
+  [/sevilla/, ['sevilla']],
+  [/valencia/, ['valencia']],
+  [/getafe/, ['getafe']],
+  [/levante/, ['levante']],
+  [/elche/, ['elche']],
+  [/oviedo/, ['real oviedo', 'oviedo']],
+  [/las palmas/, ['las palmas']],
+  [/leganes/, ['leganes']],
+  [/valladolid/, ['valladolid']],
+  // Bundesliga
+  [/gladbach/, ['borussia monchengladbach', 'monchengladbach', 'gladbach', "m'gladbach"]],
+  [/koln|cologne/, ['cologne', 'koln', 'fc koln']],
+  [/hamburg/, ['hamburg', 'hamburger sv', 'hsv']],
+  [/bremen/, ['werder bremen', 'bremen']],
+  [/hoffenheim/, ['hoffenheim']],
+  [/mainz/, ['mainz', 'mainz 05']],
+  [/stuttgart/, ['stuttgart']],
+  [/wolfsburg/, ['wolfsburg']],
+  [/freiburg/, ['freiburg']],
+  [/augsburg/, ['augsburg']],
+  [/union berlin/, ['union berlin']],
+  [/heidenheim/, ['heidenheim']],
+  [/st\.? pauli/, ['st pauli', 'st. pauli']],
+  [/bochum/, ['bochum']],
+  [/holstein|kiel/, ['holstein kiel', 'kiel']],
   [/galatasaray/, ['galatasaray']],
   [/psv/, ['psv', 'psv eindhoven']],
   [/monaco/, ['monaco', 'as monaco']],
@@ -122,7 +157,7 @@ export const channelsFor = (channels, competition) => channels.filter((c) => !c.
 
 // The best preview for a game: names both teams, says preview (or similar), posted in the
 // 4 days before kickoff.
-export function findPreview(match, videos) {
+export function findPreview(match, videos, { all = false } = {}) {
   const ko = new Date(match.kickoff).getTime();
   const fits = videos.filter((v) => {
     const t = norm(v.title);
@@ -130,7 +165,8 @@ export function findPreview(match, videos) {
     return at < ko && at >= ko - 4 * 86400_000 && mentions(t, match.home) && mentions(t, match.away)
       && /\b(preview|build up|build-up|predictions?|team news)\b/.test(t) && !/\b(live|watchalong|highlights)\b/.test(t);
   });
-  return fits.sort((a, b) => new Date(b.published) - new Date(a.published))[0] || null;
+  const sorted = fits.sort((a, b) => new Date(b.published) - new Date(a.published));
+  return all ? sorted : sorted[0] || null;
 }
 
 // A title that is a game's highlights (not a clip, interview or analysis that mentions it).
@@ -139,7 +175,7 @@ export const isHighlightTitle = (title) => /\bhighlights?\b/i.test(title)
 
 // The best highlights for a finished match: names both teams and says highlights, posted from
 // kickoff to 4 days after. One with the right score in the title is best.
-export function findHighlight(match, videos) {
+export function findHighlight(match, videos, { all = false } = {}) {
   const ko = new Date(match.kickoff).getTime();
   const fits = videos.filter((v) => {
     const t = norm(v.title);
@@ -149,7 +185,8 @@ export function findHighlight(match, videos) {
   const sc = match.score;
   const hasScore = (v) => !!sc && new RegExp(`\\b${sc.home}\\s*[-–]\\s*${sc.away}\\b`).test(v.title);
   const rank = (v) => (hasScore(v) ? 4 : 0) + (/extended/i.test(v.title) ? 1 : 0);
-  return fits.sort((a, b) => rank(b) - rank(a) || new Date(a.published) - new Date(b.published))[0] || null;
+  const sorted = fits.sort((a, b) => rank(b) - rank(a) || new Date(a.published) - new Date(b.published));
+  return all ? sorted : sorted[0] || null;
 }
 
 export function videoIdFrom(input) {
@@ -341,7 +378,7 @@ export async function findHighlights({ matches, force = false }) {
       videos.push(...lists.get(ch.id).map((v) => ({ ...v, channel: ch.name })));
     }
     const kind = kindOf(m);
-    const v = kind === 'highlight' ? findHighlight(m, videos) : findPreview(m, videos);
+    const v = await pickWatchable(kind, m, videos);
     const old = idx[kind].get(m.id);
     if (v) {
       await saveVideo(kind, m, { videoId: v.videoId, title: v.title, channel: v.channel, published: v.published, auto: true });
@@ -409,13 +446,54 @@ export async function searchCandidates(m, kind, { anywhere = false } = {}) {
       errors.push(`${ch.name}: ${e.message}`);
     }
   }
-  const best = (kind === 'preview' ? findPreview : findHighlight)(m, videos);
+  const best = await pickWatchable(kind, m, videos);
   const seen = new Set();
+  const candidates = videos.filter((v) => !seen.has(v.videoId) && seen.add(v.videoId));
+  const ok = await watchable(candidates.map((v) => v.videoId));
   return {
     best: best?.videoId || null,
-    candidates: videos.filter((v) => !seen.has(v.videoId) && seen.add(v.videoId)),
+    candidates: candidates.map((v) => ({ ...v, watchable: ok.get(v.videoId) })),
     errors,
   };
+}
+
+// ---- can it be watched here? ----
+const REGION = (process.env.HIGHLIGHTS_REGION || 'GB').toUpperCase();
+const watchCache = new Map(); // video id -> true/false
+// Whether videos can be played embedded in the UK (TV rights often block league videos).
+// 1 quota unit per 50 videos; without an API key everything counts as watchable.
+export async function watchable(ids) {
+  const todo = [...new Set(ids)].filter((id) => !watchCache.has(id));
+  if (API_KEY && !MOCK) {
+    for (let i = 0; i < todo.length; i += 50) {
+      if (!(await spend(1))) break;
+      const url = new URL('https://www.googleapis.com/youtube/v3/videos');
+      Object.entries({ part: 'status,contentDetails', id: todo.slice(i, i + 50).join(','), key: API_KEY }).forEach(([k, v]) => url.searchParams.set(k, v));
+      const r = await fetch(url);
+      if (!r.ok) break;
+      const seen = new Set();
+      for (const it of (await r.json()).items || []) {
+        seen.add(it.id);
+        watchCache.set(it.id, canWatch(it, REGION));
+      }
+      for (const id of todo.slice(i, i + 50)) if (!seen.has(id)) watchCache.set(id, false); // gone or private
+    }
+  }
+  return new Map(ids.map((id) => [id, watchCache.get(id) ?? true]));
+}
+export function canWatch(item, region = 'GB') {
+  const rr = item.contentDetails?.regionRestriction;
+  if (item.status?.embeddable === false || item.status?.privacyStatus === 'private') return false;
+  if (rr?.blocked?.includes(region)) return false;
+  if (rr?.allowed && !rr.allowed.includes(region)) return false;
+  return true;
+}
+// The best video for a game that can actually be played here.
+async function pickWatchable(kind, m, videos) {
+  const ranked = (kind === 'highlight' ? findHighlight : findPreview)(m, videos, { all: true }).slice(0, 5);
+  if (!ranked.length) return null;
+  const ok = await watchable(ranked.map((v) => v.videoId));
+  return ranked.find((v) => ok.get(v.videoId)) || null;
 }
 
 const searching = new Map(); // one search per game at a time
@@ -436,7 +514,7 @@ export async function searchFor(m, { now = Date.now() } = {}) {
     if (API_KEY && now - ko < 200 * 86400_000) {
       const videos = [];
       for (const ch of channels) videos.push(...(await channelVideos(ch, new Date(ko - 5 * 86400_000), [m])).map((v) => ({ ...v, channel: ch.name })));
-      const v = kind === 'highlight' ? findHighlight(m, videos) : findPreview(m, videos);
+      const v = await pickWatchable(kind, m, videos);
       if (!v) return null;
       await saveVideo(kind, m, { videoId: v.videoId, title: v.title, channel: v.channel, published: v.published, auto: true });
       return { kind, ...v };
@@ -449,7 +527,7 @@ export async function searchFor(m, { now = Date.now() } = {}) {
       if (!(await spend(SEARCH_COST))) { console.warn('YouTube search budget spent for today'); break; }
       const found = MOCK ? mockVideos([m]) : await searchChannel(ch.id, q, new Date(after).toISOString(), new Date(before).toISOString());
       videos.push(...found.map((v) => ({ ...v, channel: ch.name })));
-      const v = kind === 'highlight' ? findHighlight(m, videos) : findPreview(m, videos);
+      const v = await pickWatchable(kind, m, videos);
       if (v) {
         await saveVideo(kind, m, { videoId: v.videoId, title: v.title, channel: v.channel, published: v.published, auto: true, searched: true });
         return { kind, ...v };

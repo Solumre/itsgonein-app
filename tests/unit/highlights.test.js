@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFeed, findHighlight, findPreview, channelsFor, videoIdFrom, teamNames, scanUploads, isHighlightTitle, searchName } from '../../server/highlights.js';
+import { parseFeed, findHighlight, findPreview, channelsFor, videoIdFrom, teamNames, scanUploads, isHighlightTitle, searchName, canWatch } from '../../server/highlights.js';
 
 const t = (name, tla) => ({ name, tla });
 const match = { id: '1', kickoff: '2026-10-31T12:30:00Z', status: 'finished', home: t('Chelsea', 'CHE'), away: t('Man United', 'MUN'), score: { home: 0, away: 1 } };
@@ -139,6 +139,10 @@ describe('European club names', () => {
       [club('Arsenal', 'Arsenal FC', 'ARS'), club('Slavia Praha', 'SK Slavia Praha', 'SLA'), 'Arsenal 2-1 Slavia Prague | Champions League Highlights'],
       [club('Athletic Club', 'Athletic Club', 'ATH'), club('Union SG', 'Royale Union Saint-Gilloise', 'USG'), 'Athletic Bilbao v Union Saint-Gilloise | Highlights'],
       [club('Man City', 'Manchester City FC', 'MCI'), club('PAE AEK', 'PAE AEK', 'AEK'), 'Foden Is Unstoppable! | Man City 5-1 AEK Athens | UEFA Champions League Highlights'],
+      [club("M'gladbach", 'Borussia Mönchengladbach', 'BMG'), club('1. FC Köln', '1. FC Köln', 'KOE'), 'Gladbach 2-1 Cologne | Bundesliga Highlights'],
+      [club('Bayern', 'FC Bayern München', 'FCB'), club('Hamburger SV', 'Hamburger SV', 'HSV'), 'FC Bayern München - Hamburger SV 2-1 | Highlights | Matchday 9 – Bundesliga'],
+      [club('Celta', 'RC Celta de Vigo', 'CEL'), club('Betis', 'Real Betis Balompié', 'BET'), 'HIGHLIGHTS | Celta Vigo 2-1 Real Betis | LALIGA EA SPORTS'],
+      [club('Atleti', 'Club Atlético de Madrid', 'ATM'), club('Alavés', 'Deportivo Alavés', 'ALA'), 'Atletico Madrid vs Alaves (2-1) | Resumen y goles | Highlights LALIGA EA SPORTS'],
     ];
     for (const [home, away, title] of cases) expect(findHighlight(game(home, away), vt(title))?.videoId, title).toBe('clhighlight');
   });
@@ -155,5 +159,15 @@ describe('searchName', () => {
     expect(searchName({ name: 'Man United', full: 'Manchester United FC', tla: 'MUN' })).toBe('manchester united');
     expect(searchName({ name: 'Arsenal', full: 'Arsenal FC', tla: 'ARS' })).toBe('arsenal');
     expect(searchName({ name: 'PAE AEK', full: 'PAE AEK', tla: 'AEK' })).toBe('aek athens');
+  });
+});
+
+describe('canWatch', () => {
+  it('turns down videos blocked here or not embeddable', () => {
+    expect(canWatch({ status: { embeddable: true } })).toBe(true);
+    expect(canWatch({ status: { embeddable: false } })).toBe(false);
+    expect(canWatch({ status: { embeddable: true }, contentDetails: { regionRestriction: { blocked: ['GB', 'IE'] } } })).toBe(false);
+    expect(canWatch({ status: { embeddable: true }, contentDetails: { regionRestriction: { allowed: ['ES', 'AD'] } } })).toBe(false);
+    expect(canWatch({ status: { embeddable: true }, contentDetails: { regionRestriction: { allowed: ['GB', 'ES'] } } })).toBe(true);
   });
 });
