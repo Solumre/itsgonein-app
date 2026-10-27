@@ -162,6 +162,8 @@ export const QUICK_CHAT = {
 };
 
 export const REACTIONS = ['🔥', '😂', '😮', '👏', '😭', '⚽'];
+// Reactions on a league mate's pick, after kickoff.
+export const PICK_REACTIONS = ['🔥', '😂', '🤡', '🎯', '👀'];
 
 // A gameweek is finished once every game is played (or postponed).
 const done = (m) => m.status === 'finished' || m.status === 'postponed';

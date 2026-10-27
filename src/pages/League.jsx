@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Send, Share2, Settings, Flag, Ban, Trash2, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
@@ -13,6 +13,7 @@ import Crest from '../components/Crest';
 import Sheet from '../components/Sheet';
 import { Spinner, ErrorBox, Segmented, Empty } from '../components/Bits';
 import { ChallengeButton } from '../components/H2H';
+import PickReactions from '../components/PickReactions';
 
 const boardLive = (d) => d?.matches?.some((m) => m.status === 'live');
 
@@ -54,8 +55,9 @@ function Table({ board, me, code }) {
   );
 }
 
-function Picks({ board }) {
+function Picks({ board, myUid, reload }) {
   const members = [...board.rows].sort((a, b) => b.gw - a.gw);
+  const [open, setOpen] = useState(null); // { m, r, p } — a pick to react to
   return (
     <section className="picks-wrap">
       <div className="picks-grid" style={{ '--cols': members.length }}>
@@ -72,16 +74,31 @@ function Picks({ board }) {
               const p = row[r.uid];
               const cls = !p ? 'none' : p.hidden ? 'hidden' : p.points == null ? '' : p.points >= 3 ? 'exact' : p.points > 0 ? 'result' : 'miss';
               return (
-                <div key={`${m.id}-${r.uid}`} className={`pg-cell ${cls}`}>
+                <button key={`${m.id}-${r.uid}`} className={`pg-cell ${cls}`} disabled={!p || p.hidden}
+                  onClick={() => setOpen({ m, r, p })} aria-label={p && !p.hidden ? `${r.nickname}: ${p.home}-${p.away}` : undefined}>
                   {!p ? '·' : p.hidden ? <Lock size={13} aria-label="Hidden until kickoff" /> : `${p.home}-${p.away}`}
                   {p?.double && <sup>✌️</sup>}
-                </div>
+                  {p?.reactions?.length > 0 && <span className="pg-rx">{p.reactions.slice(0, 2).map((x) => x.emoji).join('')}</span>}
+                </button>
               );
             }),
           ];
         })}
       </div>
-      <p className="hint center">🔒 Picks stay hidden until kickoff.</p>
+      <p className="hint center">🔒 Picks stay hidden until kickoff. After that, tap a mate&apos;s pick to react.</p>
+      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? `${open.r.uid === myUid ? 'Your' : `${open.r.nickname}'s`} pick` : ''}>
+        {open && (
+          <div className="pick-sheet">
+            <p className="pick-sheet-line"><Crest team={open.m.home} size={22} /> {open.m.home.tla} <b>{open.p.home}–{open.p.away}</b> {open.m.away.tla} <Crest team={open.m.away} size={22} /></p>
+            <PickReactions
+              reactions={(board.picks.find((x) => x.matchId === open.m.id)?.picks || {})[open.r.uid]?.reactions || []}
+              matchId={open.m.id} target={open.r.uid} league={board.code} canReact={open.r.uid !== myUid}
+              onChange={reload}
+            />
+            <Link className="btn btn-ghost btn-sm" to={`/match/${open.m.id}?c=${board.competition}`}>Match centre ›</Link>
+          </div>
+        )}
+      </Sheet>
     </section>
   );
 }
@@ -143,7 +160,7 @@ function Chat({ code, board, myUid }) {
       <div className="chat-scroll">
         {loading ? <Spinner /> : list.length === 0 ? <Empty emoji="💬" title="No messages yet">Say hello, or share your pick for the next game.</Empty> : list.map((m) => {
           if (m.type === 'system') {
-            return <div key={m.id} className={`sys-msg sys-${m.event || 'info'}`}>{m.text}</div>;
+            return <div key={m.id} className={`sys-msg sys-${m.event || 'info'}`}>{m.text}{m.matchId && <> <Link className="match-chip" to={`/match/${m.matchId}?c=${m.matchComp || 'PL'}`}>⚽ {m.matchLabel || 'Match'} ›</Link></>}</div>;
           }
           if (blocked.has(m.uid)) return <div key={m.id} className="sys-msg muted">Message from a blocked player</div>;
           const mine = m.uid === myUid;
@@ -156,6 +173,7 @@ function Chat({ code, board, myUid }) {
                 <button className="bubble" onClick={() => !m.deleted && setSelected(m)} disabled={m.deleted}>
                   {m.deleted ? <i className="muted">Message deleted</i> : <>{m.type === 'pick' && <span className="pick-tag">🔮 My pick</span>}{m.text}</>}
                 </button>
+                {m.matchId && m.matchLabel && <Link className="match-chip" to={`/match/${m.matchId}?c=${m.matchComp || 'PL'}`}>⚽ {m.matchLabel} ›</Link>}
                 <div className="msg-meta">
                   {reactions.map(([e, u]) => (
                     <button key={e} className={`reaction${u.includes(myUid) ? ' on' : ''}`} onClick={() => act(() => api(`/api/leagues/${code}/messages/${m.id}/react`, { method: 'POST', body: { emoji: e } }))}>
@@ -322,7 +340,7 @@ export default function League() {
       )}
 
       {tab === 'table' && <Table board={board} me={user.uid} code={code} />}
-      {tab === 'picks' && <Picks board={board} />}
+      {tab === 'picks' && <Picks board={board} myUid={user.uid} reload={reload} />}
       {tab === 'chat' && <Chat code={code} board={board} myUid={user.uid} />}
 
       <Sheet open={manage} onClose={() => setManage(false)} title={board.name}>
