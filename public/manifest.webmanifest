@@ -1,7 +1,8 @@
 {
   "name": "ItsGoneIn",
   "short_name": "ItsGoneIn",
-  "description": "Premier League predictor for you and your mates",
+  "description": "Premier League and Champions League predictor for you and your mates",
+  "categories": ["sports", "games", "kids"],
   "start_url": "/predict",
   "display": "standalone",
   "background_color": "#0B0D12",

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /parent/
+Disallow: /join/
+Disallow: /welcome
+
+Sitemap: https://itsgonein.com/sitemap.xml

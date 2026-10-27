@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { db, auth, FieldValue } from './firebase.js';
@@ -15,6 +16,7 @@ import { listTrophies } from './trophies.js';
 import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion } from './quiz.js';
 import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
 import { PICK_REACTIONS, togglePickReaction, reactionsFor, visible } from './pickReactions.js';
+import { pageMeta, renderPage, sitemap } from './seo.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
 import { findHighlights, getHighlight, getPreview, searchFor, searchCandidates, channelStatus, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
@@ -941,8 +943,21 @@ app.use((err, _req, res, _next) => {
 });
 
 const dist = path.join(__dirname, '..', 'dist');
+// Search engines: a sitemap of the main pages and this fortnight's games.
+app.get('/sitemap.xml', wrap(async (_req, res) => {
+  res.set('Content-Type', 'application/xml').set('Cache-Control', 'public, max-age=3600');
+  res.send(sitemap(await gameMatches().catch(() => [])));
+}));
 app.use(express.static(dist, { maxAge: '1h', index: false }));
-app.get(/.*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+// Every other page is the app. Public pages get their own title and description in the HTML.
+let indexHtml = null;
+app.get(/.*/, wrap(async (req, res) => {
+  indexHtml ??= await fs.readFile(path.join(dist, 'index.html'), 'utf8').catch(() => null);
+  if (!indexHtml) return res.sendFile(path.join(dist, 'index.html'));
+  const id = req.path.match(/^\/match\/(\d+)$/)?.[1];
+  const match = id ? (await gameMatches().catch(() => [])).find((m) => m.id === id) : null;
+  res.set('Cache-Control', 'public, max-age=300').type('html').send(renderPage(indexHtml, req.path, pageMeta(req.path, { match })));
+}));
 
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 8000;

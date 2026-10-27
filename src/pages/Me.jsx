@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Pencil, LogOut, Moon, Sun, MonitorSmartphone } from 'lucide-react';
 import { api } from '../lib/api';
 import { useSession, logOut } from '../lib/session';
@@ -124,6 +124,7 @@ export default function Me() {
           ]} />
         </div>
         <ReminderSwitch />
+        <Link className="action" to="/how-to">❓ How to play</Link>
         <button className="action" onClick={() => setEditing(true)}><Pencil size={16} /> Change club, nickname or avatar</button>
         <button className="action" onClick={logOut}><LogOut size={16} /> Sign out</button>
       </section>

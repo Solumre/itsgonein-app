@@ -23,6 +23,7 @@ A Premier League score predictor for young fans (built for 10–15 year olds). P
 | **Live picks** | During a Premier League or Champions League game, the match centre asks quick questions: ⚽ *Who scores next?* (2 pts, a new one after every goal, closes at 85') and ⏱️ *Goal before half-time?* / *Goal in the second half?* (1 pt, only while that half is goalless). Answers lock in, league mates' answers show as avatars, and they're marked automatically from the score. Each live point is worth 5 XP; league tables aren't affected. |
 | **Highlights & previews** | Finished games get their YouTube highlights and games in the next 4 days get a preview, in the match centre. A strip at the top of Live → Games shows the latest highlights for the league selected. Videos come only from channels an admin approves (Sky Sports Premier League to start), each tagged with the leagues it covers. Channel feeds are checked every 15 minutes; with `YOUTUBE_API_KEY` set, opening an older game (or an upcoming one) with no video searches those channels for it, capped at 80 searches a day (`YOUTUBE_DAILY_BUDGET`, in quota units of 100 per search) with misses remembered. Videos only load when tapped, in YouTube's privacy-enhanced mode. |
 | **Live** | Scores (flick back and forward through rounds with the ‹ › arrows), tables and top scorers for the PL, Championship, Champions League and the big European leagues, plus a Player of the Week poll. |
+| **How to play** | A public guide at `/how-to` (also linked from the landing page and the Me tab): getting started, scoring, leagues and chat, matchday, quiz and penalties, XP and trophies, a section for parents and an FAQ. |
 | **Admin** | Reports queue, delete/block, ticker message, Player of the Week poll, manual sync. |
 
 ### Safety (players are children)
@@ -85,6 +86,9 @@ npm run lint
 
 ### Kick-off reminders
 Players turn them on from the Me tab (or the prompt on Predict). The server's sync loop sends one push about an hour before each kickoff time to players who haven't picked those games, and drops tokens for devices that have gone. On iPhone, web push only works when ItsGoneIn is opened from the Home Screen (Share → Add to Home Screen, iOS 16.4+), and the app tells players so.
+
+### Search engines
+`robots.txt` and an Open Graph share image (`og.png`) are in `public/`. The server makes `/sitemap.xml` (the main pages plus this fortnight's Premier League and Champions League games) and gives `/how-to`, `/live` and match pages their own title, description, canonical link and social tags in the HTML (`server/seo.js`; the how-to page also carries FAQ structured data). Add the site to Google Search Console and submit `https://itsgonein.com/sitemap.xml`.
 
 ### Upgrading the data later
 The free football-data.org plan has delayed scores and no goal scorers, cards or line-ups. **Free + Deep Data** (€29/month) adds live scores, line-ups, subs, scorers and cards for the same competitions, at 30 calls a minute. The match centre shows the extra data as soon as the plan provides it. After upgrading, set `FOOTBALL_DATA_CALLS_PER_MIN=25` on Render so live scores refresh every 30 seconds instead of every minute. If football-data issues a new API key, update `FOOTBALL_DATA_KEY` there too.
