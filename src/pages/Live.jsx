@@ -46,13 +46,14 @@ function Poll() {
   );
 }
 
-function HighlightsStrip() {
-  const { data } = useApi('/api/highlights', { refresh: 10 * 60_000 });
+function HighlightsStrip({ code }) {
+  const { data } = useApi(`/api/highlights?competition=${code}`, { refresh: 10 * 60_000 });
   const list = data?.highlights || [];
   if (!list.length) return null;
+  const name = COMPS.find(([c]) => c === code)?.[1] || '';
   return (
-    <section className="hl-strip" aria-label="Latest highlights">
-      <h2 className="section-title">📺 Latest highlights</h2>
+    <section className="hl-strip" aria-label={`Latest ${name} highlights`}>
+      <h2 className="section-title">📺 Latest {name} highlights</h2>
       <div className="hl-row">
         {list.map((h) => (
           <Link key={h.matchId} to={`/match/${h.matchId}?c=${h.competition}`} className="hl-card">
@@ -182,12 +183,12 @@ export default function Live() {
   return (
     <div className="page">
       <PageHead title="Live" sub="Scores, tables and top scorers" />
-      <HighlightsStrip />
       <Poll />
       <div className="comp-chips" role="tablist" aria-label="Competition">
         {COMPS.map(([c, name]) => <button key={c} role="tab" aria-selected={code === c} className={`chip${code === c ? ' on' : ''}`} onClick={() => setCode(c)}>{name}</button>)}
       </div>
       <Segmented label="View" value={tab} onChange={setTab} options={[{ value: 'games', label: 'Games' }, { value: 'table', label: 'Table' }, { value: 'scorers', label: 'Scorers' }]} />
+      {tab === 'games' && <HighlightsStrip key={code} code={code} />}
       <div className="live-body">
         {tab === 'games' && <Fixtures key={code} code={code} />}
         {tab === 'table' && <Standings code={code} />}

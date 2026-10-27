@@ -196,11 +196,11 @@ function Picks({ mine, mates, m, canPick }) {
   );
 }
 
-function Highlights({ h }) {
+function Highlights({ h, title = '📺 Highlights' }) {
   if (!h?.videoId) return null;
   return (
     <section className="card mc-highlights">
-      <h2 className="section-title">📺 Highlights</h2>
+      <h2 className="section-title">{title}</h2>
       <Video id={h.videoId} title={h.title} />
       <p className="hint">{h.channel ? `${h.channel} · ` : ''}<a href={`https://www.youtube.com/watch?v=${h.videoId}`} target="_blank" rel="noreferrer">Watch on YouTube</a></p>
     </section>
@@ -285,6 +285,7 @@ export default function MatchCentre() {
       </button>
       <Scoreboard m={m} past={data.past} />
       <Highlights h={data.highlight} />
+      <Highlights h={data.preview} title="🎬 Preview" />
       {data.live && <LivePicks live={data.live} m={m} competition={competition} onAnswered={reload} />}
       {user && !data.past && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} />}
       <Timeline events={m.events} m={m} />
