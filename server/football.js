@@ -95,6 +95,7 @@ const STATUS = {
 const team = (t) => ({
   id: t.id,
   name: t.shortName || t.name,
+  full: t.name || null, // e.g. "FC Bayern München", for matching video titles
   tla: t.tla || (t.shortName || t.name || '???').slice(0, 3).toUpperCase(),
   crest: t.crest || null,
 });

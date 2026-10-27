@@ -43,17 +43,54 @@ const ALIASES = {
   AVL: ['aston villa', 'villa'], CRY: ['crystal palace', 'palace'], LEE: ['leeds'], IPS: ['ipswich'],
   LEI: ['leicester'], SOU: ['southampton'], COV: ['coventry'], HUL: ['hull'], SUN: ['sunderland'],
 };
-const norm = (s) => ` ${String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ')} `;
+// European clubs whose data name differs from how titles write them (matched on the
+// folded name, so they don't depend on football-data's codes).
+const EURO = [
+  [/bayern|munchen/, ['bayern', 'bayern munich']],
+  [/atleti|atletico/, ['atletico madrid', 'atletico', 'atleti']],
+  [/barca|barcelona/, ['barcelona', 'barca']],
+  [/internazionale|^inter$/, ['inter', 'inter milan']],
+  [/paris saint germain|^psg$/, ['psg', 'paris saint-germain', 'paris sg', 'paris']],
+  [/kobenhavn|copenhagen/, ['copenhagen', 'fc copenhagen', 'kobenhavn']],
+  [/bodo/, ['bodo glimt', 'bodo']],
+  [/sporting (cp|clube)|^sporting$/, ['sporting', 'sporting cp', 'sporting lisbon']],
+  [/athletic club/, ['athletic club', 'athletic bilbao', 'bilbao']],
+  [/slavia/, ['slavia prague', 'slavia praha', 'slavia']],
+  [/olympia(k|c)os/, ['olympiacos', 'olympiakos']],
+  [/union (sg|saint gilloise)/, ['union saint-gilloise', 'union sg', 'union st-gilloise', 'usg']],
+  [/brugge/, ['club brugge', 'brugge', 'bruges']],
+  [/leverkusen/, ['leverkusen', 'bayer leverkusen']],
+  [/dortmund/, ['dortmund', 'borussia dortmund', 'bvb']],
+  [/eintracht|frankfurt/, ['frankfurt', 'eintracht frankfurt']],
+  [/juventus/, ['juventus', 'juve']],
+  [/marseille/, ['marseille', 'olympique de marseille']],
+  [/qarabag/, ['qarabag']],
+  [/galatasaray/, ['galatasaray']],
+  [/psv/, ['psv', 'psv eindhoven']],
+  [/monaco/, ['monaco', 'as monaco']],
+  [/napoli/, ['napoli']],
+  [/real madrid/, ['real madrid']],
+  [/villarreal/, ['villarreal']],
+  [/celtic/, ['celtic']],
+  [/rangers/, ['rangers']],
+];
+// Letters NFD doesn't split (ø, æ, ß...), then accents off.
+const fold = (s) => String(s || '').toLowerCase().replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/œ/g, 'oe').replace(/ß/g, 'ss').replace(/ł/g, 'l').replace(/đ/g, 'd').replace(/ı/g, 'i')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const norm = (s) => ` ${fold(s).replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ')} `;
+// Club-type words that don't help tell clubs apart.
+const NOISE = /\b(fc|afc|cf|sc|ac|ssc|as|rc|rcd|ogc|sl|fk|sk|cp|sv|vfb|vfl|tsg|bv|1|de|calcio|club|futbol|football)\b/g;
 export function teamNames(t) {
-  const names = new Set([t.name, t.shortName, ...(ALIASES[t.tla] || [])]
-    .filter(Boolean)
-    .map((n) => n.toLowerCase().replace(/\b(fc|afc|cf)\b/g, '').trim()));
+  const raw = [t.name, t.shortName, t.full, ...(ALIASES[t.tla] || [])].filter(Boolean);
+  const names = new Set(raw.map((n) => norm(n).replace(NOISE, ' ').replace(/\s+/g, ' ').trim()));
+  const joined = raw.map((n) => norm(n).trim()).join(' | ');
+  for (const [re, al] of EURO) if (re.test(joined)) al.forEach((a) => names.add(norm(a).trim()));
   // "Norwich City" is often just "Norwich".
   for (const n of [...names]) {
     const short = n.replace(/ (united|city|town|hove|albion|athletic|rovers|wanderers|hotspur)$/, '');
     if (short !== n && short.length >= 5) names.add(short);
   }
-  return [...names].filter((n) => n.length >= 3);
+  return [...names].filter((n) => n.length >= 3 || /^(om|usg|bvb)$/.test(n));
 }
 const mentions = (title, team) => teamNames(team).some((n) => title.includes(norm(n)));
 
@@ -226,6 +263,9 @@ async function videoIndex() {
 export const resetVideoIndex = () => { index = null; uploads.clear(); feedCache.clear(); };
 const settled = (kind, d) => !!d && (d.hidden || (d.videoId && (!d.auto || kind !== 'highlight' || isHighlightTitle(d.title || ''))));
 
+const status = new Map(); // channel id -> { videos, at, error } from the last check
+export const channelStatus = () => Object.fromEntries(status);
+
 let lastRun = 0;
 // From the channels: highlights for finished games and previews for games in the next 4
 // days, where there isn't one yet. With an API key that's every game this season (from the
@@ -252,7 +292,11 @@ export async function findHighlights({ matches, force = false }) {
   for (const m of todo) {
     const videos = [];
     for (const ch of channelsFor(channels, m.competition)) {
-      if (!lists.has(ch.id)) lists.set(ch.id, await channelVideos(ch, since, matches).catch((e) => { console.error('highlights: channel failed:', e.message); return []; }));
+      if (!lists.has(ch.id)) {
+        lists.set(ch.id, await channelVideos(ch, since, matches)
+          .then((vs) => { status.set(ch.id, { videos: vs.length, at: Date.now(), error: null }); return vs; })
+          .catch((e) => { console.error('highlights: channel failed:', e.message); status.set(ch.id, { videos: 0, at: Date.now(), error: e.message.slice(0, 200) }); return []; }));
+      }
       videos.push(...lists.get(ch.id).map((v) => ({ ...v, channel: ch.name })));
     }
     const kind = kindOf(m);

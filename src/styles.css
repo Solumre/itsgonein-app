@@ -923,7 +923,7 @@ a.fixture:hover { background: var(--card-2); }
 .pen-result { display: block; font: 900 30px/1.1 var(--display); margin-bottom: 6px; }
 .play-cards { display: grid; gap: 8px; margin: 12px 0; } .play-cards .quiz-card { margin: 0; } @media (min-width: 700px) { .play-cards { grid-template-columns: 1fr 1fr; } }
 .ch-row { flex-wrap: wrap; }
-.ch-row > a { flex: 1 1 160px; }
+
 .ch-comps { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .ch-comps.new { margin: 8px 0 10px; }
 .ch-comps small { color: var(--dim); margin-right: 4px; }
@@ -935,3 +935,6 @@ a.fixture:hover { background: var(--card-2); }
 .yt-result .who { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .yt-result .who strong { white-space: normal; font-size: 14px; }
 .yt-result small { color: var(--dim); }
+.ch-name { flex: 1 1 160px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ch-name small { color: var(--dim); }
+.ch-name small.bad { color: #f87171; }
