@@ -8,6 +8,7 @@ import { QUICK_CHAT } from '../lib/game';
 import { ago } from '../lib/format';
 import PickReactions from '../components/PickReactions';
 import EmojiPicker from '../components/EmojiPicker';
+import ModelCard from '../components/ModelCard';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { dayLabel, timeLabel, ordinal } from '../lib/format';
@@ -358,6 +359,7 @@ export default function MatchCentre() {
       <Scoreboard m={m} past={data.past} />
       <Highlights h={data.highlight} />
       <Highlights h={data.preview} title="🎬 Preview" />
+      {!data.past && ['PL', 'CL'].includes(m.competition) && <ModelCard m={m} />}
       {data.live && <LivePicks live={data.live} m={m} competition={competition} onAnswered={reload} />}
       {user && !data.past && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} onChange={reload} />}
       {user && !data.past && ['PL', 'CL'].includes(competition) && <MatchTalk m={m} />}

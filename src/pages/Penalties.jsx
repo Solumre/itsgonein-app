@@ -14,6 +14,16 @@ const OVER_AT = 85; // power above this goes over the bar
 const SAY = { goal: 'GOAL!', saved: 'SAVED!', miss: 'MISSED!' };
 
 // Card for the Predict page.
+export function LabCard() {
+  return (
+    <Link to="/lab" className="quiz-card lab-card">
+      <span className="quiz-card-icon">🤖</span>
+      <span className="who"><strong>Stats Lab</strong><small>Build a model and see if it beats you</small></span>
+      <span className="btn btn-sm">Open</span>
+    </Link>
+  );
+}
+
 export function PensCard() {
   return (
     <Link to="/penalties" className="quiz-card pens-card">
