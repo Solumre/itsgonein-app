@@ -18,6 +18,7 @@ import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
 import { PICK_REACTIONS, togglePickReaction, reactionsFor, visible } from './pickReactions.js';
 import { pageMeta, renderPage, sitemap } from './seo.js';
 import { cleanBoard, compareXI } from '../src/lib/tactics.js';
+import { clampSettings } from '../src/lib/model.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
 import { findHighlights, getHighlight, getPreview, searchFor, searchCandidates, channelStatus, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
 import { getBonus, saveBonus, setCustomQuestion, markCustomAnswer, listCustomQuestions, bonusPlayers } from './bonus.js';
@@ -513,6 +514,15 @@ app.post('/api/me/reminders', requireUser, wrap(async (req, res) => {
     await ref.set({ notifyKickoff: false, ...(token && { pushTokens: FieldValue.arrayRemove(token) }) }, { merge: true });
   }
   res.json({ ok: true });
+}));
+
+// Your Stats Lab model settings (private to you).
+app.post('/api/me/model', requireUser, wrap(async (req, res) => {
+  const ref = privates.doc(req.user.uid);
+  if (!(await ref.get()).exists) fail(403, 'Finish setting up your profile first.');
+  const model = req.body?.reset ? null : clampSettings(req.body);
+  await ref.set({ model }, { merge: true });
+  res.json({ model });
 }));
 
 app.get('/api/me/trophies', requireUser, wrap(async (req, res) => {
