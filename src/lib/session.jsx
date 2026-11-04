@@ -72,6 +72,8 @@ export function SessionProvider({ children }) {
       needsProfile: !!user && profile === null,
       canSocial: consent === 'not_needed' || consent === 'approved',
       isAdmin: !!user?.email && user.emailVerified && ADMIN_EMAILS.includes(user.email.toLowerCase()),
+      // Junior Editors (and admins) get the Editor desk. The server checks again on every action.
+      isEditor: priv?.editor === true || (!!user?.email && user.emailVerified && ADMIN_EMAILS.includes(user.email.toLowerCase())),
       themePref, setThemePref, setPreviewClub,
     };
   }, [user, profile, priv, themePref]);

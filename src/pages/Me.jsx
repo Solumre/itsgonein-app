@@ -47,7 +47,7 @@ function EditProfile({ profile, onDone }) {
 }
 
 export default function Me() {
-  const { profile, priv, themePref, setThemePref, setPreviewClub } = useSession();
+  const { profile, priv, themePref, setThemePref, setPreviewClub, isEditor, isAdmin } = useSession();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirm, setConfirm] = useState('');
@@ -124,6 +124,7 @@ export default function Me() {
           ]} />
         </div>
         <ReminderSwitch />
+        {isEditor && !isAdmin && <Link className="action" to="/editor">✍️ Editor desk</Link>}
         <Link className="action" to="/how-to">❓ How to play</Link>
         <button className="action" onClick={() => setEditing(true)}><Pencil size={16} /> Change club, nickname or avatar</button>
         <button className="action" onClick={logOut}><LogOut size={16} /> Sign out</button>

@@ -135,14 +135,17 @@ function crestQ(r, teams) {
 }
 
 // The day's five questions. Up to three from the data, the rest from the bank.
-export function buildQuiz(date, { matches = [], table = [], scorers = [], teams = [] } = {}, now = Date.now()) {
+export function buildQuiz(date, { matches = [], table = [], scorers = [], teams = [], bank = [] } = {}, now = Date.now()) {
   const r = rng(`quiz:${date}`);
   // The third one is a scorer or a badge question, whichever the day (and the data) allows.
   const third = r() < 0.5 ? scorerQ(r, scorers) || crestQ(r, teams) : crestQ(r, teams) || scorerQ(r, scorers);
   const chosen = [resultQ(r, matches, now), tableQ(r, table), third].filter(Boolean);
-  const bank = shuffle(r, TRIVIA).slice(0, QUIZ_LENGTH - chosen.length)
+  // One question written by a Junior Editor, when there's one waiting.
+  const ed = bank[0];
+  if (ed) chosen.push(q(r, 'editor', ed.question, ed.right, ed.wrong, { by: ed.by || null }));
+  const facts = shuffle(r, TRIVIA).slice(0, QUIZ_LENGTH - chosen.length)
     .map(([text, right, ...wrong]) => q(r, 'trivia', text, right, wrong));
-  return shuffle(r, [...chosen, ...bank]).map((x, i) => ({ ...x, n: i }));
+  return shuffle(r, [...chosen, ...facts]).map((x, i) => ({ ...x, n: i }));
 }
 
 // Days in a row with a quiz played, ending today or yesterday.
@@ -161,13 +164,43 @@ const quizzes = db.collection('quizzes');
 const plays = db.collection('quizPlays');
 export const publicQuestion = ({ answer, ...rest }) => rest; // eslint-disable-line no-unused-vars
 
+// Questions written by Junior Editors, used one a day, oldest first.
+const bankCol = db.collection('quizBank');
+export async function nextBankQuestion() {
+  const snap = await bankCol.where('usedOn', '==', null).limit(30).get();
+  const waiting = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
+  return waiting[0] || null;
+}
+
+export async function addBankQuestion({ question, right, wrong, by, uid }) {
+  const ref = await bankCol.add({ question, right, wrong, by: by || null, uid, usedOn: null, createdAt: FieldValue.serverTimestamp() });
+  return ref.id;
+}
+
+export async function listBank(limit = 30) {
+  const snap = await bankCol.orderBy('createdAt', 'desc').limit(limit).get();
+  return snap.docs.map((d) => ({ id: d.id, ...d.data(), createdAt: d.data().createdAt?.toMillis?.() || 0 }));
+}
+
+export async function removeBankQuestion(id, { uid, admin }) {
+  const ref = bankCol.doc(String(id));
+  const d = await ref.get();
+  if (!d.exists) throw Object.assign(new Error('Question not found.'), { status: 404, expose: true });
+  if (d.data().usedOn) throw Object.assign(new Error('That one has already been in a quiz.'), { status: 409, expose: true });
+  if (!admin && d.data().uid !== uid) throw Object.assign(new Error('You can only remove your own questions.'), { status: 403, expose: true });
+  await ref.delete();
+}
+
 export async function getQuiz(date, loadData) {
   const ref = quizzes.doc(date);
   const have = await ref.get();
   if (have.exists) return have.data().questions;
-  const questions = buildQuiz(date, await loadData());
+  const editorQ = await nextBankQuestion().catch(() => null);
+  const questions = buildQuiz(date, { ...(await loadData()), bank: editorQ ? [editorQ] : [] });
   try {
     await ref.create({ date, questions, createdAt: FieldValue.serverTimestamp() });
+    if (editorQ) await bankCol.doc(editorQ.id).update({ usedOn: date });
     return questions;
   } catch (e) {
     if (e.code === 6) return (await ref.get()).data().questions; // made by someone else just now

@@ -30,7 +30,7 @@ function Poll() {
   };
   return (
     <section className="card poll">
-      <header><h2>{poll.title}</h2><span className="eyebrow">{total} vote{total === 1 ? '' : 's'}</span></header>
+      <header><h2>{poll.title}</h2><span className="eyebrow">{total} vote{total === 1 ? '' : 's'}{poll.by ? ` · ✍️ ${poll.by}` : ''}</span></header>
       {poll.options.map((o) => {
         const pct = total ? Math.round((o.votes / total) * 100) : 0;
         return (

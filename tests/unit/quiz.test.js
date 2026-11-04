@@ -73,3 +73,15 @@ describe('quizStreak and quizDate', () => {
     expect(quizDate(Date.parse('2026-12-01T23:30:00Z'))).toBe('2026-12-01'); // GMT
   });
 });
+
+describe('editor questions', () => {
+  it('puts one Junior Editor question in the quiz, with their name', () => {
+    const bank = [{ question: 'Who won the 2024 Ballon d\'Or?', right: 'Rodri', wrong: ['Vinícius Júnior', 'Bellingham', 'Kane'], by: 'Seb' }];
+    const qs = buildQuiz('2026-11-05', { ...data, bank }, now);
+    expect(qs).toHaveLength(5);
+    const ed = qs.filter((q) => q.kind === 'editor');
+    expect(ed).toHaveLength(1);
+    expect(ed[0]).toMatchObject({ text: 'Who won the 2024 Ballon d\'Or?', by: 'Seb' });
+    expect(ed[0].options[ed[0].answer]).toBe('Rodri');
+  });
+});

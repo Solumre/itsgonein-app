@@ -1,6 +1,6 @@
 import { createContext, useContext, lazy, Suspense, useRef, useLayoutEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, NavLink, Link, useLocation } from 'react-router-dom';
-import { Target, Trophy, Radio, UserRound, Shield } from 'lucide-react';
+import { Target, Trophy, Radio, UserRound, Shield, PenLine } from 'lucide-react';
 import { SessionProvider, useSession } from './lib/session';
 import { useMatches, useTicker, useIncomingChallenges } from './lib/hooks';
 import { ToastProvider } from './components/Toast';
@@ -21,6 +21,7 @@ import Quiz from './pages/Quiz';
 import HowTo from './pages/HowTo';
 import Tactics from './pages/Tactics';
 import Lab from './pages/Lab';
+import Editor from './pages/Editor';
 import Penalties from './pages/Penalties';
 
 const Admin = lazy(() => import('./pages/Admin'));
@@ -35,7 +36,7 @@ function Ticker({ matches }) {
   const message = ticker?.active ? ticker.message : null;
   if (!live.length && !message) return null;
   const items = [
-    ...(message ? [<span key="msg" className="ticker-msg">📢 {message}</span>] : []),
+    ...(message ? [<span key="msg" className="ticker-msg">📢 {message}{ticker.by && <small className="ticker-by"> ✍️ {ticker.by}</small>}</span>] : []),
     ...live.map((m) => (
       <Link key={m.id} to={`/match/${m.id}?c=${m.competition}`} className="ticker-item">
         {m.competition === 'CL' && '⭐ '}{m.home.tla} <b>{m.score?.home}–{m.score?.away}</b> {m.away.tla}
@@ -77,7 +78,7 @@ const NAV = [
 ];
 
 function Shell({ children }) {
-  const { user, profile, isAdmin, canSocial } = useSession();
+  const { user, profile, isAdmin, isEditor, canSocial } = useSession();
   const incoming = useIncomingChallenges(canSocial ? user?.uid : null);
   const matches = useMatches('PL');
   const clMatches = useMatches('CL');
@@ -91,6 +92,7 @@ function Shell({ children }) {
           <Link to={home} className="brand" aria-label="ItsGoneIn home">ITS<span>GONE</span>IN<i>.</i></Link>
           <div className="topbar-right">
             {isAdmin && <Link to="/admin" className="icon-btn" aria-label="Admin"><Shield size={20} /></Link>}
+            {isEditor && !isAdmin && <Link to="/editor" className="icon-btn" aria-label="Editor desk" title="Editor desk"><PenLine size={20} /></Link>}
             {profile ? (
               <Link to="/me" className="topbar-me" aria-label="Your profile">
                 <span className="lvl">LV {profile.stats?.level || 1}</span>
@@ -173,6 +175,7 @@ export default function App() {
             <Route path="/penalties" element={inShell(<Penalties />)} />
             <Route path="/tactics/:matchId" element={inShell(<Tactics />)} />
             <Route path="/lab" element={inShell(<Lab />)} />
+            <Route path="/editor" element={inShell(<Editor />)} />
             <Route path="/me" element={inShell(<Me />)} />
             <Route path="/admin" element={inShell(<Suspense fallback={<Spinner />}><Admin /></Suspense>)} />
             <Route path="*" element={<Navigate to="/" replace />} />

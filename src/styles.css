@@ -1111,3 +1111,12 @@ a.action { text-decoration: none; color: inherit; }
 .lab-h-pick.none { opacity: 0.5; }
 .lab-table td.good { color: #22c55e; font-weight: 700; }
 .lab-table td.bad { color: #f87171; }
+
+/* Junior Editor */
+.ticker-by { color: var(--dim); font-weight: 600; }
+.quiz-by { margin: -8px 0 12px; color: var(--accent); font-weight: 700; font-size: 14px; }
+.bank-list .who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bank-list .who strong { white-space: normal; }
+.bank-list small { color: var(--dim); }
+.who-row { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+input.right-answer { border-color: color-mix(in srgb, #22c55e 60%, var(--line-2)) !important; }

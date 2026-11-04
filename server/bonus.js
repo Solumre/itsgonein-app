@@ -93,7 +93,7 @@ export async function bonusPlayers(mds) {
 }
 
 // --- admin -----------------------------------------------------------------------------
-export async function setCustomQuestion(md, question, options) {
+export async function setCustomQuestion(md, question, options, by = null) {
   const matches = await getMatches('PL');
   const gw = matches.filter((m) => m.matchday === md);
   if (!gw.length) fail(404, 'No games in that gameweek.');
@@ -103,7 +103,7 @@ export async function setCustomQuestion(md, question, options) {
   if (text.length < 5) fail(400, 'Write a question.');
   if (opts.length < 2 || opts.length > 4) fail(400, 'Give 2 to 4 answers.');
   await customCol.doc(key(md)).set({
-    matchday: md, question: text, options: opts.map((label, i) => ({ id: `o${i + 1}`, label })), answer: null,
+    matchday: md, question: text, options: opts.map((label, i) => ({ id: `o${i + 1}`, label })), answer: null, by,
     createdAt: FieldValue.serverTimestamp(),
   });
 }
