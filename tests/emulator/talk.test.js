@@ -87,3 +87,14 @@ describe('reactions on picks', () => {
     expect((await react(seb, amy, '👀')).status).toBe(403);
   });
 });
+
+describe('stats lab settings', () => {
+  it('saves your model settings privately, in range, and resets them', async () => {
+    const r = await call(seb, 'POST', '/api/me/model', { form: 3, home: 1.3 });
+    expect(r.body.model).toEqual({ form: 1, home: 1.3 });
+    expect((await db.doc(`private/${seb.uid}`).get()).data().model).toEqual({ form: 1, home: 1.3 });
+    await call(seb, 'POST', '/api/me/model', { reset: true });
+    expect((await db.doc(`private/${seb.uid}`).get()).data().model).toBeNull();
+    expect((await call(null, 'POST', '/api/me/model', { form: 0.5 })).status).toBe(401);
+  });
+});
