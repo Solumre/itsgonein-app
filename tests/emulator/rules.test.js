@@ -108,9 +108,15 @@ describe('everything else is read-only from the app', () => {
 
 describe('server-only data', () => {
   it('keeps quiz answers, quiz scores, live picks and highlights away from the app', async () => {
-    for (const path of ['quizzes/2026-10-31', 'quizPlays/2026-10-31_alice', 'livePicks/m2_next_0-0_alice', 'highlights/m2', 'penGames/g1', 'tactics/alice_m1_home']) {
+    for (const path of ['quizzes/2026-10-31', 'quizPlays/2026-10-31_alice', 'livePicks/m2_next_0-0_alice', 'highlights/m2', 'penGames/g1', 'tactics/alice_m1_home', 'quizBank/q1']) {
       await assertFails(getDoc(doc(alice(), path)));
       await assertFails(setDoc(doc(alice(), path), { uid: 'alice', score: 5 }));
     }
+  });
+});
+
+describe('editor role', () => {
+  it("can't be given to yourself from the app", async () => {
+    await assertFails(setDoc(doc(alice(), 'private/alice'), { editor: true }, { merge: true }));
   });
 });

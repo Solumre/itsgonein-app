@@ -16,6 +16,7 @@ function Question({ q, chosen, answer, busy, onPick }) {
     <section className="card quiz-q">
       {q.image && <img className="quiz-crest" src={q.image} alt="Club badge" />}
       <h2 className="quiz-text">{q.text}</h2>
+      {q.by && <p className="quiz-by">✍️ Question by {q.by}</p>}
       <div className="quiz-options">
         {q.options.map((o, i) => {
           const cls = !revealed ? '' : i === answer ? ' right' : i === chosen ? ' wrong' : ' faded';

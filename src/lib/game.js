@@ -213,7 +213,7 @@ export function bonusQuestions(md, gwMatches, custom) {
     { id: 'nil', type: 'choice', text: 'Will any game finish 0–0?', hint: '1 pt',
       options: [{ id: 'yes', label: 'Yes' }, { id: 'no', label: 'No' }] },
   ];
-  if (custom?.question) qs.push({ id: 'custom', type: 'choice', text: custom.question, hint: '2 pts', options: custom.options, custom: true });
+  if (custom?.question) qs.push({ id: 'custom', type: 'choice', text: custom.question, hint: custom.by ? `2 pts · ✍️ by ${custom.by}` : '2 pts', options: custom.options, custom: true });
   return qs;
 }
 

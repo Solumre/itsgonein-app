@@ -13,7 +13,7 @@ import { syncNow, startSyncLoop, toGameMatch, gameMatches, recomputeUser, matche
 import { buildRecap, gameweekComplete } from './recap.js';
 import { createChallenge, respondChallenge, cancelChallenge, listChallenges, openRound } from './h2h.js';
 import { listTrophies } from './trophies.js';
-import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion } from './quiz.js';
+import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, publicQuestion, addBankQuestion, listBank, removeBankQuestion } from './quiz.js';
 import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
 import { PICK_REACTIONS, togglePickReaction, reactionsFor, visible } from './pickReactions.js';
 import { pageMeta, renderPage, sitemap } from './seo.js';
@@ -59,6 +59,15 @@ const requireUser = wrap(async (req, _res, next) => {
 const optionalUser = wrap(async (req, _res, next) => { req.user = await readUser(req); next(); });
 const isAdmin = (u) => !!u && u.email_verified && ADMIN_EMAILS.includes((u.email || '').toLowerCase());
 const requireAdmin = (req, _res, next) => (isAdmin(req.user) ? next() : next(new HttpError(403, 'Admins only.')));
+// Admins, or players an admin has made a Junior Editor (ticker, poll, bonus and quiz questions).
+// req.editorName is set for editors, to credit their work; admins aren't credited.
+const requireEditor = wrap(async (req, _res, next) => {
+  if (isAdmin(req.user)) return next();
+  const [p, u] = await Promise.all([db.collection('private').doc(req.user.uid).get(), db.collection('users').doc(req.user.uid).get()]);
+  if (!p.data()?.editor || !u.exists) fail(403, 'Editors only.');
+  req.editorName = u.data().nickname;
+  next();
+});
 
 const users = db.collection('users');
 const privates = db.collection('private');
@@ -731,18 +740,18 @@ app.post('/api/bonus', requireUser, wrap(async (req, res) => {
   res.json(await saveBonus(req.user.uid, mdParam(req.body?.matchday), req.body?.answers));
 }));
 
-app.get('/api/admin/bonus', requireUser, requireAdmin, wrap(async (_req, res) => {
+app.get('/api/admin/bonus', requireUser, requireEditor, wrap(async (_req, res) => {
   const next = openRound(await getMatches('PL'));
   res.json({ questions: await listCustomQuestions(), nextMatchday: next?.matchday ?? null });
 }));
 
-app.post('/api/admin/bonus', requireUser, requireAdmin, wrap(async (req, res) => {
-  await setCustomQuestion(mdParam(req.body?.matchday), req.body?.question, req.body?.options);
+app.post('/api/admin/bonus', requireUser, requireEditor, wrap(async (req, res) => {
+  await setCustomQuestion(mdParam(req.body?.matchday), req.body?.question, req.body?.options, req.editorName || null);
   res.json({ ok: true });
 }));
 
 // Marking the answer re-scores everyone who answered that gameweek.
-app.post('/api/admin/bonus/:md/answer', requireUser, requireAdmin, wrap(async (req, res) => {
+app.post('/api/admin/bonus/:md/answer', requireUser, requireEditor, wrap(async (req, res) => {
   const md = mdParam(req.params.md);
   await markCustomAnswer(md, req.body?.answer);
   const byComp = matchesByCompetition(await gameMatches());
@@ -882,12 +891,12 @@ app.post('/api/reports', requireUser, wrap(async (req, res) => {
 app.get('/api/poll', optionalUser, wrap(async (req, res) => {
   const poll = await db.collection('polls').doc('current').get();
   if (!poll.exists) return res.json({ poll: null });
-  const { id, title, options } = poll.data();
+  const { id, title, options, by } = poll.data();
   const votes = db.collection('polls').doc(id).collection('votes');
   const counts = await Promise.all(options.map((o) => votes.where('option', '==', o.id).count().get()));
   const mine = req.user ? await votes.doc(req.user.uid).get() : null;
   res.json({
-    poll: { id, title, options: options.map((o, i) => ({ ...o, votes: counts[i].data().count })), myVote: mine?.exists ? mine.data().option : null },
+    poll: { id, title, by: by || null, options: options.map((o, i) => ({ ...o, votes: counts[i].data().count })), myVote: mine?.exists ? mine.data().option : null },
   });
 }));
 
@@ -941,19 +950,65 @@ app.post('/api/admin/ban', requireUser, requireAdmin, wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-app.post('/api/admin/ticker', requireUser, requireAdmin, wrap(async (req, res) => {
+app.post('/api/admin/ticker', requireUser, requireEditor, wrap(async (req, res) => {
   const message = clip(String(req.body?.message || '').trim(), 140);
-  await db.collection('settings').doc('ticker').set({ message, active: !!message });
+  if (message) { const c = checkText(message, { max: 140 }); if (!c.ok) fail(400, c.reason); }
+  await db.collection('settings').doc('ticker').set({ message, active: !!message, by: message ? req.editorName || null : null });
   res.json({ ok: true });
 }));
 
-app.post('/api/admin/poll', requireUser, requireAdmin, wrap(async (req, res) => {
+app.post('/api/admin/poll', requireUser, requireEditor, wrap(async (req, res) => {
   const title = clip(req.body?.title || 'Player of the Week', 60);
   const options = (req.body?.options || [])
     .map((o, i) => ({ id: `p${i + 1}`, name: clip(String(o.name || '').trim(), 30), team: clip(String(o.team || '').trim(), 30) }))
     .filter((o) => o.name);
   if (options.length < 2 || options.length > 6) fail(400, 'Add 2 to 6 players.');
-  await db.collection('polls').doc('current').set({ id: `poll_${Date.now()}`, title, options, createdAt: FieldValue.serverTimestamp() });
+  for (const o of options) { const c = checkText(`${o.name} ${o.team}`); if (!c.ok) fail(400, c.reason); }
+  await db.collection('polls').doc('current').set({ id: `poll_${Date.now()}`, title, options, by: req.editorName || null, createdAt: FieldValue.serverTimestamp() });
+  res.json({ ok: true });
+}));
+
+// Quiz questions written by Junior Editors (and admins), used one a day in the daily quiz.
+app.get('/api/editor/quiz', requireUser, requireEditor, wrap(async (_req, res) => {
+  res.json({ questions: await listBank() });
+}));
+
+app.post('/api/editor/quiz', requireUser, requireEditor, wrap(async (req, res) => {
+  if (!rateLimit(`bank:${req.user.uid}`, { max: 20, windowMs: 60 * 60_000 })) fail(429, 'That\'s plenty for now!');
+  const question = checkText(req.body?.question, { max: 120 });
+  if (!question.ok) fail(400, question.reason);
+  if (question.text.length < 8) fail(400, 'Write a proper question.');
+  const answers = [req.body?.right, ...(Array.isArray(req.body?.wrong) ? req.body.wrong : [])].map((a) => checkText(a, { max: 40 }));
+  if (answers.length !== 4) fail(400, 'Give the right answer and three wrong ones.');
+  const bad = answers.find((a) => !a.ok);
+  if (bad) fail(400, bad.reason);
+  const texts = answers.map((a) => a.text);
+  if (new Set(texts.map((t) => t.toLowerCase())).size !== 4) fail(400, 'All four answers need to be different.');
+  const id = await addBankQuestion({ question: question.text, right: texts[0], wrong: texts.slice(1), by: req.editorName || null, uid: req.user.uid });
+  res.json({ id });
+}));
+
+app.delete('/api/editor/quiz/:id', requireUser, requireEditor, wrap(async (req, res) => {
+  await removeBankQuestion(req.params.id, { uid: req.user.uid, admin: isAdmin(req.user) });
+  res.json({ ok: true });
+}));
+
+// Junior Editors: list, add and remove (by nickname).
+app.get('/api/admin/editors', requireUser, requireAdmin, wrap(async (_req, res) => {
+  const snap = await privates.where('editor', '==', true).get();
+  const people = snap.empty ? [] : await db.getAll(...snap.docs.map((d) => users.doc(d.id)));
+  res.json({ editors: people.filter((d) => d.exists).map((d) => ({ uid: d.id, nickname: d.data().nickname, avatar: d.data().avatar })) });
+}));
+
+app.post('/api/admin/editors', requireUser, requireAdmin, wrap(async (req, res) => {
+  let uid = String(req.body?.uid || '');
+  if (!uid) {
+    const found = await db.collection('nicknames').doc(String(req.body?.nickname || '').trim().toLowerCase() || '_').get();
+    if (!found.exists) fail(404, 'No player with that nickname.');
+    uid = found.data().uid;
+  }
+  if (!(await privates.doc(uid).get()).exists) fail(404, 'No player with that nickname.');
+  await privates.doc(uid).set({ editor: req.body?.editor !== false }, { merge: true });
   res.json({ ok: true });
 }));
 
