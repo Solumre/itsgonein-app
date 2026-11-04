@@ -358,6 +358,13 @@ export default function MatchCentre() {
       <Scoreboard m={m} past={data.past} />
       <Highlights h={data.highlight} />
       <Highlights h={data.preview} title="🎬 Preview" />
+      {user && !data.past && ['PL', 'CL'].includes(competition) && (
+        <Link to={`/tactics/${m.id}?c=${competition}`} className="quiz-card tac-card">
+          <span className="quiz-card-icon">🧠</span>
+          <span className="who"><strong>Tactics board</strong><small>{m.status === 'upcoming' ? 'Predict the starting XI and shape, draw the runs' : 'See how your XI compared with the real one'}</small></span>
+          <span className="btn btn-sm">{m.status === 'upcoming' ? 'Open' : 'Check'}</span>
+        </Link>
+      )}
       {data.live && <LivePicks live={data.live} m={m} competition={competition} onAnswered={reload} />}
       {user && !data.past && ['PL', 'CL'].includes(competition) && <Picks mine={data.mine} mates={data.mates} m={m} canPick={canPick} onChange={reload} />}
       {user && !data.past && ['PL', 'CL'].includes(competition) && <MatchTalk m={m} />}

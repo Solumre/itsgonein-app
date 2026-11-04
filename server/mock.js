@@ -262,7 +262,7 @@ export function mockFeed(path) {
   if (!LEAGUES[code]) return { matches: [], standings: [], scorers: [], teams: [] };
   if (kind === 'matches') return { matches: season(code).map((m) => matchJson(m, code, now)) };
   if (kind === 'standings') return standings(code, now);
-  if (kind === 'teams') return { teams: LEAGUES[code].teams.map(toTeam) };
+  if (kind === 'teams') return { teams: LEAGUES[code].teams.map((t) => ({ ...toTeam(t), squad: squad(t) })) };
   if (kind === 'scorers') {
     const byTla = Object.fromEntries(LEAGUES.PL.teams.map((t) => [t[2], t]));
     return {
