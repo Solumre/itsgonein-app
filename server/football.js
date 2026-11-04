@@ -189,7 +189,10 @@ export async function getScorers(code) {
 export async function getTeams(code) {
   return cached(`teams:${code}`, () => 24 * 60 * 60_000, async () => {
     const json = await get(`/competitions/${code}/teams`);
-    return (json.teams || []).map((t) => ({ ...team(t), colors: t.clubColors || '' }));
+    return (json.teams || []).map((t) => ({
+      ...team(t), colors: t.clubColors || '',
+      squad: (t.squad || []).map((p) => ({ name: p.name, position: p.position || null, shirt: p.shirtNumber ?? null })),
+    }));
   });
 }
 
@@ -264,4 +267,9 @@ export async function getHead2Head(id) {
         .map((x) => normalizeMatch(x, x.competition?.code || null)),
     };
   });
+}
+
+// A club's squad from the competition's teams list.
+export async function getSquad(code, teamId) {
+  return (await getTeams(code)).find((t) => t.id === teamId)?.squad || [];
 }

@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { db, auth, FieldValue } from './firebase.js';
 import {
-  COMPETITIONS, GAME_COMPETITION, GAME_COMPETITIONS, isCompetition, getMatches, getStandings, getScorers, getTeams, currentMatchday,
+  COMPETITIONS, GAME_COMPETITION, GAME_COMPETITIONS, isCompetition, getMatches, getStandings, getScorers, getTeams, getSquad, currentMatchday,
   getMatchDetail, getHead2Head,
 } from './football.js';
 import { syncNow, startSyncLoop, toGameMatch, gameMatches, recomputeUser, matchesByCompetition } from './sync.js';
@@ -17,6 +17,7 @@ import { quizDate, getQuiz, getPlay, answerQuestion, quizStats, playsFor, public
 import { startGame, kick as penKick, penStats, bestToday } from './pens.js';
 import { PICK_REACTIONS, togglePickReaction, reactionsFor, visible } from './pickReactions.js';
 import { pageMeta, renderPage, sitemap } from './seo.js';
+import { cleanBoard, compareXI } from '../src/lib/tactics.js';
 import { clampSettings } from '../src/lib/model.js';
 import { openQuestions, answer as answerLive, picksForMatch } from './live.js';
 import { findHighlights, getHighlight, getPreview, searchFor, searchCandidates, channelStatus, latestHighlights, getChannels, setChannels, resolveChannel, saveVideo, videoIdFrom, quotaToday } from './highlights.js';
@@ -231,6 +232,72 @@ app.post('/api/pens/:id/kick', requireUser, wrap(async (req, res) => {
   res.json(r);
 }));
 
+// --- tactics board ------------------------------------------------------------------------
+const tactics = db.collection('tactics');
+const tacticsMatch = async (req) => {
+  const comp = String(req.query.competition || req.body?.competition || 'PL').toUpperCase();
+  if (!GAME_COMPETITIONS.includes(comp)) fail(400, 'The tactics board is for Premier League and Champions League games.');
+  const m = (await getMatches(comp)).find((x) => x.id === String(req.params.matchId));
+  if (!m) fail(404, 'Match not found.');
+  return m;
+};
+const tacticsLocked = (m) => m.status !== 'upcoming' || new Date(m.kickoff).getTime() <= Date.now();
+
+// Both squads, your boards for the game, and (once line-ups are out) how they compare.
+app.get('/api/tactics/:matchId', requireUser, wrap(async (req, res) => {
+  const m = await tacticsMatch(req);
+  const [homeSquad, awaySquad, mine, detail] = await Promise.all([
+    getSquad(m.competition, m.home.id), getSquad(m.competition, m.away.id),
+    db.getAll(tactics.doc(`${req.user.uid}_${m.id}_home`), tactics.doc(`${req.user.uid}_${m.id}_away`)),
+    m.status !== 'upcoming' || new Date(m.kickoff) - Date.now() < 2 * 3600_000 ? getMatchDetail(m.id, m.competition).catch(() => null) : null,
+  ]);
+  const boards = Object.fromEntries(['home', 'away'].map((side, i) => {
+    const d = mine[i].exists ? mine[i].data() : null;
+    return [side, d && { formation: d.formation, players: d.players, arrows: d.arrows || [] }];
+  }));
+  const lineups = detail?.lineups || null;
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    match: m, locked: tacticsLocked(m), squads: { home: homeSquad, away: awaySquad }, boards, lineups,
+    compare: { home: compareXI(boards.home, lineups?.home), away: compareXI(boards.away, lineups?.away) },
+  });
+}));
+
+app.post('/api/tactics/:matchId', requireUser, wrap(async (req, res) => {
+  const m = await tacticsMatch(req);
+  if (tacticsLocked(m)) fail(409, 'This game has kicked off, so your board is locked.');
+  const side = req.body?.side === 'away' ? 'away' : 'home';
+  if (!rateLimit(`tactics:${req.user.uid}`, { max: 60, windowMs: 10 * 60_000 })) fail(429, 'Slow down a bit!');
+  const squad = await getSquad(m.competition, m[side].id);
+  const { board, error } = cleanBoard(req.body, squad.map((p) => p.name));
+  if (error) fail(400, error);
+  await tactics.doc(`${req.user.uid}_${m.id}_${side}`).set({
+    uid: req.user.uid, matchId: m.id, competition: m.competition, side, team: m[side].tla, ...board, updatedAt: FieldValue.serverTimestamp(),
+  });
+  res.json({ ok: true });
+}));
+
+// Post a saved board in a league chat.
+app.post('/api/tactics/:matchId/share', requireUser, wrap(async (req, res) => {
+  const { uid } = req.user;
+  const { user } = await socialCheck(uid);
+  const l = await memberLeague(req.body?.league, uid);
+  if (!rateLimit(`msg:${uid}`, { max: 6, windowMs: 30_000 })) fail(429, 'Slow down a bit!');
+  const m = await tacticsMatch(req);
+  const side = req.body?.side === 'away' ? 'away' : 'home';
+  const d = await tactics.doc(`${uid}_${m.id}_${side}`).get();
+  if (!d.exists) fail(400, 'Save your board first.');
+  const { formation, players, arrows } = d.data();
+  const ref = await l.ref.collection('messages').add({
+    uid, nickname: user.nickname, avatar: user.avatar, color: user.club?.primary || null,
+    type: 'tactic', text: `🧠 My ${m[side].tla} ${formation} for ${m.home.tla} v ${m.away.tla}`,
+    board: { formation, players, arrows: arrows || [], team: m[side].tla, side },
+    matchId: m.id, matchComp: m.competition, matchLabel: `${m.home.tla} v ${m.away.tla}`,
+    createdAt: FieldValue.serverTimestamp(), reactions: {},
+  });
+  res.json({ id: ref.id });
+}));
+
 // --- daily quiz -------------------------------------------------------------------------
 const loadQuizData = async () => {
   const [matches, standings, scorers, teams] = await Promise.all([
@@ -307,7 +374,8 @@ app.get('/api/highlights', wrap(async (req, res) => {
 app.get('/api/teams', wrap(async (_req, res) => {
   const [pl, elc] = await Promise.all([getTeams('PL'), getTeams('ELC').catch(() => [])]);
   res.set('Cache-Control', 'public, max-age=3600');
-  res.json({ groups: [{ name: 'Premier League', teams: pl }, { name: 'Championship', teams: elc }] });
+  const noSquad = (ts) => ts.map(({ squad, ...t }) => t); // eslint-disable-line no-unused-vars
+  res.json({ groups: [{ name: 'Premier League', teams: noSquad(pl) }, { name: 'Championship', teams: noSquad(elc) }] });
 }));
 
 // --- profile & parent consent ---------------------------------------------------------

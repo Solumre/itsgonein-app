@@ -19,6 +19,7 @@ import Parent from './pages/Parent';
 import MatchCentre from './pages/MatchCentre';
 import Quiz from './pages/Quiz';
 import HowTo from './pages/HowTo';
+import Tactics from './pages/Tactics';
 import Lab from './pages/Lab';
 import Penalties from './pages/Penalties';
 
@@ -170,6 +171,7 @@ export default function App() {
             <Route path="/quiz" element={inShell(<Quiz />)} />
             <Route path="/how-to" element={<HowToRoute />} />
             <Route path="/penalties" element={inShell(<Penalties />)} />
+            <Route path="/tactics/:matchId" element={inShell(<Tactics />)} />
             <Route path="/lab" element={inShell(<Lab />)} />
             <Route path="/me" element={inShell(<Me />)} />
             <Route path="/admin" element={inShell(<Suspense fallback={<Spinner />}><Admin /></Suspense>)} />

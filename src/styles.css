@@ -1041,6 +1041,37 @@ a.action { text-decoration: none; color: inherit; }
 }
 @media (max-width: 560px) { .emoji-pop.up { bottom: calc(150px + env(safe-area-inset-bottom, 0px)); } }
 
+/* Tactics board */
+.tac-card { background: linear-gradient(120deg, color-mix(in srgb, #16a34a 26%, var(--card)), var(--card)); margin: 12px 0; }
+.tac-head h1 { display: flex; align-items: center; gap: 8px; font: italic 800 34px/1 var(--display); text-transform: uppercase; margin: 6px 0; }
+.tac-tools { display: grid; gap: 8px; margin: 10px 0; }
+.chips-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.pitch { display: block; width: 100%; max-width: 460px; margin: 8px auto; border-radius: 16px; touch-action: none; user-select: none; }
+.pitch.small { max-width: 180px; margin: 8px 0 0; border-radius: 10px; }
+.pitch-grass { fill: #2f8f3a; }
+.pitch-stripe { fill: #2a8134; }
+.pitch-lines * { stroke: rgba(255, 255, 255, 0.75); stroke-width: 0.5; }
+.pitch .token { cursor: grab; }
+.pitch .token.dragging { cursor: grabbing; }
+.pitch .token.empty circle:not(.hit):not(.miss) { fill: rgba(0, 0, 0, 0.35); stroke-dasharray: 1.2 1; }
+.token-num { font: 800 3.2px/1 var(--display); pointer-events: none; }
+.token-name { font: 700 3.3px/1 var(--display); fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, 0.6); stroke-width: 0.8px; pointer-events: none; }
+.pitch .hit { fill: none; stroke: #4ade80; stroke-width: 1.2; }
+.pitch .miss { fill: none; stroke: #f87171; stroke-width: 1.2; stroke-dasharray: 1.5 1; }
+.pitch .arrow { stroke: #fff; stroke-width: 0.9; stroke-linecap: round; }
+.pitch .arrow.run { stroke-dasharray: 2 1.6; stroke: #fde047; }
+.pitch.mode-run, .pitch.mode-pass { cursor: crosshair; }
+.tac-actions { display: grid; gap: 8px; max-width: 460px; margin: 0 auto; }
+.tac-result { text-align: center; }
+.tac-score { display: block; font: 900 56px/1 var(--display); color: var(--accent); }
+.tac-real { color: var(--dim); line-height: 1.6; }
+.squad-list { display: grid; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.squad-list h4 { margin: 6px 0; color: var(--dim); font: 800 13px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.squad-pick { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 0; border-radius: 12px; background: var(--card-2); margin-bottom: 4px; font-weight: 700; text-align: left; color: inherit; }
+.squad-pick.used { opacity: 0.55; }
+.squad-pick.current { outline: 2px solid var(--accent); opacity: 1; }
+.squad-pick small { margin-left: auto; color: var(--dim); font-weight: 500; }
+.chat-pitch { display: block; }
 /* Stats Lab */
 .lab-card { background: linear-gradient(120deg, color-mix(in srgb, #3b82f6 28%, var(--card)), var(--card)); }
 @media (min-width: 700px) { .play-cards { grid-template-columns: repeat(3, 1fr); } }

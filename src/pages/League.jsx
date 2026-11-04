@@ -15,6 +15,7 @@ import { Spinner, ErrorBox, Segmented, Empty } from '../components/Bits';
 import { ChallengeButton } from '../components/H2H';
 import PickReactions from '../components/PickReactions';
 import EmojiPicker from '../components/EmojiPicker';
+import Pitch from '../components/Pitch';
 
 const boardLive = (d) => d?.matches?.some((m) => m.status === 'live');
 
@@ -173,7 +174,7 @@ function Chat({ code, board, myUid }) {
               <div className="msg-col">
                 {!mine && <span className="msg-name" style={{ color: m.color || undefined }}>{m.nickname}</span>}
                 <button className="bubble" onClick={() => !m.deleted && setSelected(m)} disabled={m.deleted}>
-                  {m.deleted ? <i className="muted">Message deleted</i> : <>{m.type === 'pick' && <span className="pick-tag">🔮 My pick</span>}{m.text}</>}
+                  {m.deleted ? <i className="muted">Message deleted</i> : <>{m.type === 'pick' && <span className="pick-tag">🔮 My pick</span>}{m.text}{m.type === 'tactic' && m.board && <span className="chat-pitch"><Pitch board={m.board} small /></span>}</>}
                 </button>
                 {m.matchId && m.matchLabel && <Link className="match-chip" to={`/match/${m.matchId}?c=${m.matchComp || 'PL'}`}>⚽ {m.matchLabel} ›</Link>}
                 <div className="msg-meta">

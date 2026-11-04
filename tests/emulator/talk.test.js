@@ -88,6 +88,44 @@ describe('reactions on picks', () => {
   });
 });
 
+describe('tactics board', () => {
+  const url = (m) => `/api/tactics/${m.id}?competition=PL`;
+  it('gives both squads and saves a valid board before kickoff', async () => {
+    const r = await call(seb, 'GET', url(upcoming));
+    expect(r.body.locked).toBe(false);
+    expect(r.body.squads.home.length).toBeGreaterThanOrEqual(11);
+    const { autoFill } = await import('../../src/lib/tactics.js');
+    const players = autoFill('4-4-2', r.body.squads.home).map(({ name, x, y }) => ({ name, x, y }));
+    expect((await call(seb, 'POST', url(upcoming), { side: 'home', formation: '4-4-2', players: [{ name: 'Lionel Messi', x: 5, y: 5 }, ...players.slice(1)] })).status).toBe(400);
+    const ok = await call(seb, 'POST', url(upcoming), { side: 'home', formation: '4-4-2', players, arrows: [{ kind: 'pass', x1: 50, y1: 40, x2: 70, y2: 80 }] });
+    expect(ok.status).toBe(200);
+    const again = await call(seb, 'GET', url(upcoming));
+    expect(again.body.boards.home).toMatchObject({ formation: '4-4-2', arrows: [{ kind: 'pass' }] });
+    expect(again.body.boards.away).toBeNull();
+  });
+
+  it('shares a saved board to a league chat', async () => {
+    const r = await call(seb, 'POST', `/api/tactics/${upcoming.id}/share?competition=PL`, { side: 'home', league: 'TALK' });
+    const msg = (await db.doc(`leagues/TALK/messages/${r.body.id}`).get()).data();
+    expect(msg).toMatchObject({ type: 'tactic', matchId: upcoming.id, board: { formation: '4-4-2', side: 'home' } });
+    expect(msg.board.players).toHaveLength(11);
+    expect((await call(seb, 'POST', `/api/tactics/${upcoming.id}/share?competition=PL`, { side: 'away', league: 'TALK' })).status).toBe(400); // nothing saved
+  });
+
+  it('locks at kickoff and scores the XI against the real line-up', async () => {
+    const r = await call(seb, 'GET', url(live));
+    expect(r.body.locked).toBe(true);
+    expect((await call(seb, 'POST', url(live), { side: 'home', formation: '4-3-3', players: [] })).status).toBe(409);
+    // Saved before kickoff: the mock's real XI is the first 11 of the squad.
+    const xi = r.body.lineups.home.starting.map((p) => p.name);
+    const { FORMATIONS } = await import('../../src/lib/tactics.js');
+    const players = FORMATIONS['4-3-3'].map(([x, y], i) => ({ name: i < 9 ? xi[i] : r.body.squads.home[11 + i - 9].name, x, y }));
+    await db.doc(`tactics/${seb.uid}_${live.id}_home`).set({ uid: seb.uid, matchId: live.id, side: 'home', formation: '4-3-3', players, arrows: [] });
+    const c = (await call(seb, 'GET', url(live))).body.compare.home;
+    expect(c).toMatchObject({ correct: 9, total: 11, formationRight: true });
+  });
+});
+
 describe('stats lab settings', () => {
   it('saves your model settings privately, in range, and resets them', async () => {
     const r = await call(seb, 'POST', '/api/me/model', { form: 3, home: 1.3 });
